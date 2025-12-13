@@ -1,3 +1,4 @@
+use crate::util::*;
 use std::cmp::PartialEq;
 use std::ops::{Add, Div, Index, IndexMut, Mul, Neg, Sub};
 use std::simd::{LaneCount, Simd, SupportedLaneCount};
@@ -121,5 +122,54 @@ where
 {
     fn from(value: Simd<f32, N>) -> Self {
         Self { components: value }
+    }
+}
+
+impl<const K: u8, const N: usize> KVector<K, N>
+where
+    LaneCount<N>: SupportedLaneCount,
+{
+    pub fn grade() -> u8 {
+        K
+    }
+
+    pub fn is_ideal(&self) -> bool {
+        self[0..Self::ideal_index()]
+            .iter()
+            .fold(true, |acc, f| acc && float_eq(*f, 0.0))
+    }
+
+    pub const fn ideal_index() -> usize {
+        match K {
+            1 => 3,
+            2 => 3,
+            3 => 1,
+            _ => 0,
+        }
+    }
+
+    pub fn eucl_norm(&self) -> f32 {
+        match K {
+            3 => self[0].abs(),
+            _ => sum_of_squares(&self[0..Self::ideal_index()]),
+        }
+    }
+
+    pub fn ideal_norm(&self) -> f32 {
+        match K {
+            1 => self[3].abs(),
+            _ => sum_of_squares(&self[Self::ideal_index()..N]),
+        }
+    }
+
+    pub fn magnitude(&self) -> f32 {
+        match self.eucl_norm() {
+            0.0 => self.ideal_norm(),
+            m => m,
+        }
+    }
+
+    pub fn normalize(&self) -> Self {
+        *self / self.magnitude()
     }
 }
