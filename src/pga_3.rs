@@ -1,3 +1,5 @@
-pub trait Multivector {}
+pub use kvector::*;
+pub use multivector::*;
 
-pub mod kvector;
+mod kvector;
+mod multivector;

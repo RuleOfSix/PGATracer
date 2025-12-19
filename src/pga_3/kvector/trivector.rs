@@ -130,7 +130,6 @@ mod tests {
         assert_eq!(ideal_y.magnitude(), 1.0);
         assert_eq!(ideal_y.ideal_norm(), 1.0);
         assert_eq!(ideal_y.eucl_norm(), 0.0);
-
         assert_eq!(ideal_z.magnitude(), 1.0);
         assert_eq!(ideal_z.ideal_norm(), 1.0);
         assert_eq!(ideal_z.eucl_norm(), 0.0);
@@ -147,16 +146,43 @@ mod tests {
 
     #[test]
     fn normalize() {
-        let a = Trivector::direction(4.0, 0.0, 0.0);
-        assert_eq!(a.normalize(), Trivector::direction(1.0, 0.0, 0.0));
+        let mut a = Trivector::direction(4.0, 0.0, 0.0);
+        assert_eq!(*a.normalize(), Trivector::direction(1.0, 0.0, 0.0));
 
-        let b = Trivector::point(2.0, 3.0, 4.0);
-        assert_eq!(b.normalize(), Trivector::point(2.0, 3.0, 4.0));
+        let mut b = Trivector::point(2.0, 3.0, 4.0);
+        assert_eq!(*b.normalize(), Trivector::point(2.0, 3.0, 4.0));
 
-        let c = Trivector::direction(1.0, 2.0, 3.0);
+        let mut c = Trivector::direction(1.0, 2.0, 3.0);
+        c.normalize();
         let c_mag = f32::sqrt(1.0 + 4.0 + 9.0);
         let c_norm = Trivector::direction(1.0 / c_mag, 2.0 / c_mag, 3.0 / c_mag);
-        assert_eq!(c.normalize(), c_norm);
-        assert!(float_eq(c.normalize().magnitude(), 1.0));
+        assert_eq!(c, c_norm);
+        assert!(float_eq(c.magnitude(), 1.0));
+    }
+
+    #[test]
+    fn inner_product_point() {
+        assert_eq!(
+            Trivector::point(4.5, 5.9, -2.3).inner(Trivector::point(-3.4, 6.0, 1.3)),
+            -1.0
+        );
+
+        let a = Trivector::from([3.2, -1.0, -2.0, -3.0]);
+        let b = Trivector::from([5.6, 3.0, 2.0, 1.0]);
+        assert!(float_eq(a.inner(b), -17.92));
+    }
+
+    #[test]
+    fn inner_product_ideal_point() {
+        let a = Trivector::direction(-1.0, -2.0, -3.0);
+        let b = Trivector::direction(3.0, 2.0, 3.0);
+        assert!(float_eq(a.inner(b), 0.0));
+    }
+
+    #[test]
+    fn inner_product_direction_with_point() {
+        let a = Trivector::direction(-1.0, -2.0, -3.0);
+        let b = Trivector::point(1.0, 2.0, 3.0);
+        assert!(float_eq(a.inner(b), 0.0));
     }
 }
