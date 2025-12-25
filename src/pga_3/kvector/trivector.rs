@@ -1,4 +1,4 @@
-use super::KVector;
+use crate::pga_3::*;
 
 // Basis: e123, e032, e013, e021
 pub type Trivector = KVector<3, 4>;
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn trivector_is_grade_3() {
-        assert_eq!(Trivector::grade(), 3);
+        assert_eq!(Trivector::from([0.0; 4]).highest_grade(), 3);
     }
 
     #[test]
@@ -146,43 +146,48 @@ mod tests {
 
     #[test]
     fn normalize() {
-        let mut a = Trivector::direction(4.0, 0.0, 0.0);
-        assert_eq!(*a.normalize(), Trivector::direction(1.0, 0.0, 0.0));
+        let a = Trivector::direction(4.0, 0.0, 0.0);
+        assert_eq!(a.normalize(), Trivector::direction(1.0, 0.0, 0.0));
 
-        let mut b = Trivector::point(2.0, 3.0, 4.0);
-        assert_eq!(*b.normalize(), Trivector::point(2.0, 3.0, 4.0));
+        let b = Trivector::point(2.0, 3.0, 4.0);
+        assert_eq!(b.normalize(), Trivector::point(2.0, 3.0, 4.0));
 
-        let mut c = Trivector::direction(1.0, 2.0, 3.0);
-        c.normalize();
+        let c = Trivector::direction(1.0, 2.0, 3.0);
         let c_mag = f32::sqrt(1.0 + 4.0 + 9.0);
         let c_norm = Trivector::direction(1.0 / c_mag, 2.0 / c_mag, 3.0 / c_mag);
-        assert_eq!(c, c_norm);
-        assert!(float_eq(c.magnitude(), 1.0));
+        assert_eq!(c.normalize(), c_norm);
+        assert!(float_eq(c.normalize().magnitude(), 1.0));
     }
 
     #[test]
     fn inner_product_point() {
         assert_eq!(
             Trivector::point(4.5, 5.9, -2.3).inner(Trivector::point(-3.4, 6.0, 1.3)),
-            -1.0
+            (-1.0).into()
         );
 
         let a = Trivector::from([3.2, -1.0, -2.0, -3.0]);
         let b = Trivector::from([5.6, 3.0, 2.0, 1.0]);
-        assert!(float_eq(a.inner(b), -17.92));
+        assert_eq!(a.inner(b), (-17.92).into());
     }
 
     #[test]
     fn inner_product_ideal_point() {
         let a = Trivector::direction(-1.0, -2.0, -3.0);
         let b = Trivector::direction(3.0, 2.0, 3.0);
-        assert!(float_eq(a.inner(b), 0.0));
+        assert_eq!(a.inner(b), 0.0.into());
     }
 
     #[test]
     fn inner_product_direction_with_point() {
         let a = Trivector::direction(-1.0, -2.0, -3.0);
         let b = Trivector::point(1.0, 2.0, 3.0);
-        assert!(float_eq(a.inner(b), 0.0));
+        assert_eq!(a.inner(b), 0.0.into());
+    }
+
+    #[test]
+    fn reverse() {
+        let tv = Trivector::from([1.0, -2.0, -3.0, -4.0]);
+        assert_eq!(tv.reverse(), Trivector::from([-1.0, 2.0, 3.0, 4.0]));
     }
 }

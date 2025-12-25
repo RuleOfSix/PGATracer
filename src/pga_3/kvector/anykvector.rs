@@ -1,9 +1,8 @@
-use super::KVector;
-use super::{Bivector, Pseudoscalar, Scalar, Trivector, Vector};
+use crate::pga_3::*;
 use crate::util::float_eq;
 use AnyKVector::*;
 use std::any::Any;
-use std::ops::{BitAnd, BitXor, Div, Mul, Neg};
+use std::ops::{BitAnd, BitOr, BitXor, Div, Mul, Neg};
 use std::simd::{LaneCount, SupportedLaneCount};
 
 #[derive(Copy, Clone, Debug)]
@@ -56,6 +55,18 @@ impl Mul<Scalar> for AnyKVector {
     }
 }
 
+impl<T> Mul<T> for AnyKVector
+where
+    T: Multivector,
+    T: NonScalar,
+{
+    type Output = Versor;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        self.geo(rhs)
+    }
+}
+
 impl Div<Scalar> for AnyKVector {
     type Output = Self;
 
@@ -70,51 +81,29 @@ impl Div<Scalar> for AnyKVector {
     }
 }
 
-impl<const K: u8, const N: usize> BitXor<KVector<K, N>> for AnyKVector
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    type Output = Self;
+impl<T: SingleGrade> BitXor<T> for AnyKVector {
+    type Output = AnyKVector;
 
     #[inline]
-    fn bitxor(self, rhs: KVector<K, N>) -> Self::Output {
-        match self {
-            Zero(s) => (rhs * s).into(),
-            One(v) => (v ^ rhs).into(),
-            Two(bv) => (bv ^ rhs).into(),
-            Three(tv) => (tv ^ rhs).into(),
-            Four(_) => Zero(0.0),
-        }
-    }
-}
-
-impl BitXor for AnyKVector {
-    type Output = Self;
-
-    #[inline]
-    fn bitxor(self, rhs: Self) -> Self::Output {
+    fn bitxor(self, rhs: T) -> Self::Output {
         self.outer(rhs)
     }
 }
 
-impl<const K: u8, const N: usize> BitAnd<KVector<K, N>> for AnyKVector
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    type Output = Self;
+impl<T: SingleGrade> BitAnd<T> for AnyKVector {
+    type Output = AnyKVector;
 
     #[inline]
-    fn bitand(self, rhs: KVector<K, N>) -> Self::Output {
-        (self.dual() ^ rhs.dual()).undual()
+    fn bitand(self, rhs: T) -> Self::Output {
+        self.regressive(rhs)
     }
 }
 
-impl BitAnd for AnyKVector {
-    type Output = Self;
-
+impl<T: SingleGrade> BitOr<T> for AnyKVector {
+    type Output = AnyKVector;
     #[inline]
-    fn bitand(self, rhs: AnyKVector) -> Self::Output {
-        (self.dual() ^ rhs.dual()).undual()
+    fn bitor(self, rhs: T) -> Self::Output {
+        self.inner(rhs)
     }
 }
 
@@ -148,8 +137,53 @@ impl From<Pseudoscalar> for AnyKVector {
     }
 }
 
-impl AnyKVector {
-    pub fn grade(&self) -> u8 {
+impl Multivector for AnyKVector {
+    #[inline]
+    fn reverse(&self) -> Self {
+        match self {
+            Zero(s) => s.reverse().into(),
+            One(v) => v.reverse().into(),
+            Two(bv) => bv.reverse().into(),
+            Three(tv) => tv.reverse().into(),
+            Four(ps) => ps.reverse().into(),
+        }
+    }
+
+    #[inline]
+    fn grade_involution(&self) -> Self {
+        match self {
+            Zero(s) => s.grade_involution().into(),
+            One(v) => v.grade_involution().into(),
+            Two(bv) => bv.grade_involution().into(),
+            Three(tv) => tv.grade_involution().into(),
+            Four(ps) => ps.grade_involution().into(),
+        }
+    }
+
+    #[inline]
+    fn e(&self, basis: u8) -> f32 {
+        match self {
+            Zero(s) => s.e(basis),
+            One(v) => v.e(basis),
+            Two(bv) => bv.e(basis),
+            Three(tv) => tv.e(basis),
+            Four(ps) => ps.e(basis),
+        }
+    }
+
+    #[inline]
+    fn grade(&self, g: u8) -> Self {
+        match self {
+            Zero(s) => s.grade(g),
+            One(v) => v.grade(g),
+            Two(bv) => bv.grade(g),
+            Three(tv) => tv.grade(g),
+            Four(ps) => ps.grade(g),
+        }
+    }
+
+    #[inline]
+    fn highest_grade(&self) -> u8 {
         match self {
             Zero(_) => 0,
             One(_) => 1,
@@ -159,36 +193,92 @@ impl AnyKVector {
         }
     }
 
-    pub fn dual(self) -> Self {
+    #[inline]
+    fn zero(&self) -> bool {
+        match self {
+            Zero(s) => s.zero(),
+            One(v) => v.zero(),
+            Two(bv) => bv.zero(),
+            Three(tv) => tv.zero(),
+            Four(ps) => ps.zero(),
+        }
+    }
+
+    #[inline]
+    fn is_ideal(&self) -> bool {
+        match self {
+            Zero(s) => s.is_ideal(),
+            One(v) => v.is_ideal(),
+            Two(bv) => bv.is_ideal(),
+            Three(tv) => tv.is_ideal(),
+            Four(ps) => ps.is_ideal(),
+        }
+    }
+
+    #[inline]
+    fn dual(self) -> Versor {
         match self {
             Zero(s) => {
                 if s != 0.0 {
-                    Four(Pseudoscalar(s))
+                    Pseudoscalar(s).into()
                 } else {
-                    self
+                    self.into()
                 }
             }
-            One(v) => v.dual(),
-            Two(bv) => bv.dual(),
-            Three(tv) => tv.dual(),
-            Four(ps) => Zero(ps.0),
+            One(v) => v.dual().into(),
+            Two(bv) => bv.dual().into(),
+            Three(tv) => tv.dual().into(),
+            Four(ps) => Zero(ps.0).into(),
         }
     }
 
-    pub fn undual(self) -> Self {
+    #[inline]
+    fn undual(self) -> Versor {
         match self {
-            One(v) => v.undual(),
-            Three(tv) => tv.undual(),
-            _ => self.dual(),
+            One(v) => v.undual().into(),
+            Three(tv) => tv.undual().into(),
+            _ => self.dual().into(),
         }
     }
 
-    pub fn outer(self, rhs: Self) -> Self {
+    #[inline]
+    fn geo<T: Multivector>(self, rhs: T) -> Versor {
+        match self {
+            Zero(s) => (rhs * s).into(),
+            One(v) => v.geo(rhs),
+            Two(bv) => bv.geo(rhs),
+            Three(tv) => tv.geo(rhs),
+            Four(ps) => ps.geo(rhs),
+        }
+    }
+}
+
+impl SingleGrade for AnyKVector {
+    #[inline]
+    fn outer<T: SingleGrade>(self, rhs: T) -> AnyKVector {
+        self.outer_self(rhs.into())
+    }
+
+    #[inline]
+    fn inner<T: SingleGrade>(self, rhs: T) -> AnyKVector {
+        match self {
+            Zero(s) => (rhs * s).into(),
+            One(v) => v.inner(rhs),
+            Two(bv) => bv.inner(rhs),
+            Three(tv) => tv.inner(rhs),
+            Four(ps) => ps.inner(rhs),
+        }
+    }
+}
+
+impl AnyKVector {
+    #[inline]
+    pub fn outer_self(self, rhs: Self) -> Self {
         match self {
             Zero(s) => rhs * s,
-            One(v) => v ^ rhs,
-            Two(bv) => bv ^ rhs,
-            Three(tv) => tv ^ rhs,
+            One(v) => v.outer(rhs),
+            Two(bv) => bv.outer(rhs),
+            Three(tv) => tv.outer(rhs),
             Four(ps) => {
                 if let Zero(s) = rhs {
                     Four(ps * s)
@@ -198,4 +288,43 @@ impl AnyKVector {
             }
         }
     }
+}
+
+#[macro_export]
+macro_rules! type_of {
+    (Zero) => {
+        Scalar
+    };
+    (One) => {
+        Vector
+    };
+    (Two) => {
+        Bivector
+    };
+    (Three) => {
+        Trivector
+    };
+    (Four) => {
+        Pseudoscalar
+    };
+}
+
+#[macro_export]
+macro_rules! anykvec_sum {
+    ( {$variant:tt} $($anykv:expr),*) => {{
+        use AnyKVector::*;
+        let mut result: Option<type_of!($variant)> = None;
+        for anykvec in [ $($anykv, )* ] {
+            if let $variant(v) = anykvec {
+                result = match result {
+                    Some(r) => Some(r + v),
+                    None => None,
+                };
+            };
+        }
+        match result {
+            Some(r) => $variant(r),
+            None => AnyKVector::Zero(0.0),
+        }
+    }};
 }
