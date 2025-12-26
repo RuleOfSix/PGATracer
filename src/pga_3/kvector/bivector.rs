@@ -3,12 +3,17 @@ use crate::pga_3::*;
 pub type Bivector = KVector<2, 6>;
 
 impl Bivector {
-    pub fn exp(&self, coefficient: f32) -> Motor {
-        Motor::from((
-            f32::cos(-coefficient),
-            -*self * f32::sin(-coefficient),
-            Pseudoscalar(0.0),
-        ))
+    pub fn exp(&self) -> Motor {
+        use std::cmp::Ordering::*;
+        match self.eucl_norm().partial_cmp(&0.0) {
+            Some(Equal) => Motor::from((1.0, *self, Pseudoscalar(0.0))),
+            Some(Greater) => Motor::from((
+                self.magnitude().cos(),
+                self.normalize() * self.magnitude().sin(),
+                Pseudoscalar(0.0),
+            )),
+            _ => panic!("Magnitude of bivector should be non-negative and non-NaN"),
+        }
     }
 }
 
@@ -34,6 +39,6 @@ mod test {
             0.0,
             0.0,
         ]);
-        assert_eq!(bv.normalize().exp(1.0), expected);
+        assert_eq!(bv.normalize().exp(), expected);
     }
 }

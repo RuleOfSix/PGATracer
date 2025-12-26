@@ -20,6 +20,25 @@ pub enum Transformation {
     },
 }
 
+impl Transformation {
+    pub fn rotation(axis: Bivector, angle: f32) -> Self {
+        Transformation::Rotation {
+            axis: axis.normalize(),
+            angle,
+        }
+    }
+    pub fn translation(dir: Trivector) -> Self {
+        Transformation::Translation { direction: dir }
+    }
+    pub fn screw(axis: Bivector, angle: f32, distance: f32) -> Self {
+        Transformation::Screw {
+            axis: axis.normalize(),
+            angle,
+            distance,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Motor {
     components: Simd<f32, 8>,
@@ -78,25 +97,23 @@ impl From<Transformation> for Motor {
         use Transformation::*;
         use Versor::*;
         match t {
-            Rotation {
-                axis: bv,
-                angle: theta,
-            } => bv.exp(-theta / 2.0),
-            Translation { direction: tv } => {
-                let KVec(Two(bv)) = -(Vector::from([0.0, 0.0, 0.0, 1.0]) * tv.dual()) / 2.0 else {
+            Rotation { axis, angle } => axis.mul(-angle / 2.0).exp(),
+            Translation { direction } => {
+                let KVec(Two(bv)) = -(Vector::from([0.0, 0.0, 0.0, 1.0]) * direction.dual()) / 2.0
+                else {
                     panic!("Line at infinity should be a line");
                 };
                 Self::from((1.0, bv, Pseudoscalar(0.0)))
             }
             Screw {
-                axis: bv,
-                angle: theta,
-                distance: d,
+                axis,
+                angle,
+                distance,
             } => {
-                let KVec(Two(bv_i)) = bv.dual() else {
-                    panic!("Dual of bivector must be a bivector");
+                let KVec(Two(bv_i)) = axis * Pseudoscalar(1.0) * distance / 2.0 else {
+                    panic!("Line at infinity must be a bivector");
                 };
-                match Motor::from((1.0, bv_i * d / 2.0, Pseudoscalar(0.0))) * bv.exp(-theta / 2.0) {
+                match bv_i.exp() * axis.mul(-angle / 2.0).exp() {
                     Even(m) => m,
                     _ => panic!("Screw motion should be a motor"),
                 }
@@ -392,10 +409,7 @@ mod test {
     fn rotate_plane() {
         use std::f32::consts::PI;
         let p = Vector::from([1.0, 0.0, 0.0, 0.0]);
-        let r = Transformation::Rotation {
-            axis: Bivector::from([0.0, 1.0, 0.0, 0.0, 0.0, 0.0]),
-            angle: PI / 4.0,
-        };
+        let r = Transformation::rotation(Bivector::from([0.0, 1.0, 0.0, 0.0, 0.0, 0.0]), PI / 4.0);
         let expected = Vector::from([1.0, 0.0, 1.0, 0.0]).normalize();
         let m = Motor::from(r);
         assert_eq!(m.reverse() * p * m, Versor::from(expected));
@@ -407,7 +421,7 @@ mod test {
     fn translate_plane() {
         let p = Vector::from([1.0, 0.0, 0.0, 0.0]);
         let dir = Trivector::direction(5.0, 0.0, 0.0);
-        let t = Transformation::Translation { direction: dir };
+        let t = Transformation::translation(dir);
         let expected = Vector::from([1.0, 0.0, 0.0, 5.0]).normalize();
         assert_eq!(Motor::from(t) >> p, expected.into());
     }
@@ -417,11 +431,32 @@ mod test {
         use std::f32::consts::PI;
         let x_axis = Bivector::from([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]);
         let z_axis = Bivector::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-        let s = Transformation::Screw {
-            axis: z_axis,
-            angle: PI / 4.0,
-            distance: 5.0,
+        let s = Transformation::screw(z_axis, PI / 4.0, 5.0);
+        let result = (Motor::from(s) >> x_axis).normalize();
+        let Versor::KVec(AnyKVector::Three(p1)) =
+            (Trivector::from([1.0, 0.0, 0.0, 0.0]) | result) * result
+        else {
+            panic!("Point projected onto line should be a point");
         };
-        assert_eq!(Motor::from(s) >> x_axis, 0.0.into());
+        let p2 = p1 + {
+            let Versor::KVec(AnyKVector::Three(bv)) = Vector::from([0.0, 0.0, 0.0, 1.0]) * result
+            else {
+                panic!("e0 * bivector should be trivector");
+            };
+            bv
+        };
+        println!("P1: {:?}\nP2: {:?}", p1, p2);
+        assert_eq!(
+            result,
+            Bivector::from([
+                0.0,
+                -0.7071066499,
+                0.7071068883,
+                -3.5355329514,
+                -3.5355343819,
+                0.0
+            ])
+            .into()
+        );
     }
 }

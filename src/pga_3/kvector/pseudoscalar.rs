@@ -148,9 +148,9 @@ impl SingleGrade for Pseudoscalar {
         use AnyKVector::*;
         match rhs.into() {
             Zero(s) => (self * s).into(),
-            One(v) => v.inner(self),
+            One(v) => -v.inner(self),
             Two(bv) => bv.inner(self),
-            Three(tv) => tv.inner(self),
+            Three(tv) => -tv.inner(self),
             Four(_) => 0.0.into(),
         }
     }

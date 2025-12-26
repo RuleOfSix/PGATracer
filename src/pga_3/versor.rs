@@ -72,7 +72,7 @@ impl From<Motor> for Versor {
         if is_zero(&m[1..8]) {
             Versor::KVec(m[0].into())
         } else if is_zero(&m[0..7]) {
-            Versor::KVec(m[7].into())
+            Versor::KVec(Pseudoscalar(m[7]).into())
         } else if float_eq(m[0], 0.0) && float_eq(m[7], 0.0) {
             Versor::KVec(Bivector::from([m[1], m[2], m[3], m[4], m[5], m[6]]).into())
         } else {
