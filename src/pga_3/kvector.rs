@@ -55,7 +55,11 @@ where
     LaneCount<N>: SupportedLaneCount,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.components == other.components
+        self.components
+            .as_array()
+            .iter()
+            .enumerate()
+            .fold(true, |acc, (i, e)| acc && float_eq(*e, other[i]))
     }
 }
 
@@ -342,8 +346,11 @@ where
                             Three(tv) => OddVersor::from(tv),
                             _ => panic!("Scaled odd K-vector should still be odd K-vector"),
                         };
-                        let Odd(t2) = rhs_g2.reverse_geo_kvector(self) else {
-                            panic!("Odd K-Vector * Motor should be an odd versor");
+                        let t2 = match rhs_g2.reverse_geo_kvector(self) {
+                            Odd(ov) => ov,
+                            KVec(One(v)) => OddVersor::from(v),
+                            KVec(Three(tv)) => OddVersor::from(tv),
+                            _ => panic!("Odd K-Vector * Motor should be an odd versor"),
                         };
                         let t3 = match self.inner(m.grade(4)) {
                             One(v) => OddVersor::from(v),
@@ -835,7 +842,7 @@ where
                 };
                 match K + G {
                     3 => {
-                        let tv = match dbg!(self ^ rhs) {
+                        let tv = match self ^ rhs {
                             Three(tv) => tv,
                             Zero(0.0) => return Versor::from(v),
                             _ => panic!(
@@ -1176,5 +1183,17 @@ mod tests {
         let bv2 = Bivector::from([-5.0, 10.0, -5.0, 13.0, 10.0, 5.0]);
         assert_eq!(bv1 * bv1.inverse().unwrap(), Versor::KVec(1.0.into()));
         assert_eq!(bv2 * bv2.inverse().unwrap(), Versor::KVec(1.0.into()));
+    }
+
+    #[test]
+    fn vector_normalized_mag_1() {
+        let v = Vector::from([1.0, 2.0, 3.0, 4.0]);
+        assert!(float_eq(v.normalize().magnitude(), 1.0));
+    }
+
+    #[test]
+    fn bivector_normalized_mag_1() {
+        let bv = Bivector::from([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert!(float_eq(bv.normalize().magnitude(), 1.0));
     }
 }

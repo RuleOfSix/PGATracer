@@ -1,4 +1,5 @@
 use crate::pga_3::*;
+use crate::util::float_eq;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::ops::{Index, IndexMut};
 use std::simd::{Simd, simd_swizzle};
@@ -63,7 +64,11 @@ impl<Idx: SliceIndex<[f32]>> IndexMut<Idx> for OddVersor {
 
 impl PartialEq for OddVersor {
     fn eq(&self, other: &Self) -> bool {
-        self.components == other.components
+        self.components
+            .as_array()
+            .iter()
+            .enumerate()
+            .fold(true, |acc, (i, e)| acc && float_eq(*e, other[i]))
     }
 }
 

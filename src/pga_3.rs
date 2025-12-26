@@ -13,7 +13,7 @@ pub trait Multivector:
     fn zero(&self) -> bool;
     fn is_ideal(&self) -> bool;
     fn eucl_norm(&self) -> f32 {
-        self.geo(self.reverse()).e(0b0000).sqrt()
+        self.reverse().geo(*self).e(0b0000).sqrt()
     }
     fn ideal_norm(&self) -> f32 {
         self.dual().eucl_norm()
@@ -37,8 +37,7 @@ pub trait Multivector:
     }
 
     fn inverse(self) -> Option<Self> {
-        use crate::util::float_eq;
-        if !float_eq(self.e(0b1111), 0.0) || self.is_ideal() {
+        if self.is_ideal() {
             return None;
         }
         Some(self.reverse() / self.magnitude().powi(2))

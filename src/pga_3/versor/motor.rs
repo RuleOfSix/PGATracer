@@ -1,8 +1,24 @@
 use crate::pga_3::*;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use crate::util::float_eq;
+use std::ops::{Add, Div, Mul, Neg, Shr, Sub};
 use std::ops::{Index, IndexMut};
 use std::simd::{Simd, simd_swizzle};
 use std::slice::SliceIndex;
+
+pub enum Transformation {
+    Rotation {
+        axis: Bivector,
+        angle: f32,
+    },
+    Translation {
+        direction: Trivector,
+    },
+    Screw {
+        axis: Bivector,
+        angle: f32,
+        distance: f32,
+    },
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Motor {
@@ -55,6 +71,40 @@ impl From<(Scalar, Bivector, Pseudoscalar)> for Motor {
     }
 }
 
+impl From<Transformation> for Motor {
+    #[inline]
+    fn from(t: Transformation) -> Self {
+        use AnyKVector::*;
+        use Transformation::*;
+        use Versor::*;
+        match t {
+            Rotation {
+                axis: bv,
+                angle: theta,
+            } => bv.exp(-theta / 2.0),
+            Translation { direction: tv } => {
+                let KVec(Two(bv)) = -(Vector::from([0.0, 0.0, 0.0, 1.0]) * tv.dual()) / 2.0 else {
+                    panic!("Line at infinity should be a line");
+                };
+                Self::from((1.0, bv, Pseudoscalar(0.0)))
+            }
+            Screw {
+                axis: bv,
+                angle: theta,
+                distance: d,
+            } => {
+                let KVec(Two(bv_i)) = bv.dual() else {
+                    panic!("Dual of bivector must be a bivector");
+                };
+                match Motor::from((1.0, bv_i * d / 2.0, Pseudoscalar(0.0))) * bv.exp(-theta / 2.0) {
+                    Even(m) => m,
+                    _ => panic!("Screw motion should be a motor"),
+                }
+            }
+        }
+    }
+}
+
 impl<Idx: SliceIndex<[f32]>> Index<Idx> for Motor {
     type Output = Idx::Output;
     fn index(&self, index: Idx) -> &Self::Output {
@@ -70,7 +120,11 @@ impl<Idx: SliceIndex<[f32]>> IndexMut<Idx> for Motor {
 
 impl PartialEq for Motor {
     fn eq(&self, other: &Self) -> bool {
-        self.components == other.components
+        self.components
+            .as_array()
+            .iter()
+            .enumerate()
+            .fold(true, |acc, (i, e)| acc && float_eq(*e, other[i]))
     }
 }
 
@@ -115,6 +169,13 @@ impl<T: Multivector + NonScalar> Mul<T> for Motor {
     type Output = Versor;
     fn mul(self, rhs: T) -> Self::Output {
         self.geo(rhs)
+    }
+}
+
+impl<T: SingleGrade + NonScalar> Shr<T> for Motor {
+    type Output = AnyKVector;
+    fn shr(self, rhs: T) -> Self::Output {
+        self.sandwich(rhs)
     }
 }
 
@@ -183,7 +244,7 @@ impl Multivector for Motor {
 
     #[inline]
     fn is_ideal(&self) -> bool {
-        self[4..8] == [0.0; 4]
+        self[0..4] == [0.0; 4]
     }
 
     #[inline]
@@ -199,6 +260,25 @@ impl Multivector for Motor {
         self.dual()
     }
 
+    fn normalize(self) -> Self {
+        use AnyKVector::*;
+        use Versor::*;
+        let squared = match self * self.reverse() {
+            Even(m) => m,
+            KVec(Zero(s)) => Motor::from(s),
+            KVec(Four(ps)) => Motor::from(ps),
+            _ => panic!("Motor squared should be scalar + pseudoscalar"),
+        };
+        let s = 1.0 / squared[0].sqrt();
+        let ps = -squared[7] / (2.0 * squared[0].sqrt().powi(3));
+        match self * Motor::from([s, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ps]) {
+            Even(m) => m,
+            KVec(Zero(s)) => Motor::from(s),
+            KVec(Four(ps)) => Motor::from(ps),
+            _ => panic!("Motor normalized should be a motor"),
+        }
+    }
+
     #[inline]
     fn geo<T: Multivector>(self, rhs: T) -> Versor {
         use Versor::*;
@@ -211,21 +291,47 @@ impl Multivector for Motor {
             KVec(kv) => kv.reverse().geo(self.reverse()).reverse(),
             Even(m) => {
                 let t1 = m * self_g0;
-                let Even(t2) = self_g2.geo(m) else {
-                    panic!("Bivector * Motor should be motor");
+                let t2 = match self_g2.geo(m) {
+                    Even(m) => m,
+                    KVec(kv) => match kv {
+                        AnyKVector::Zero(s) => Motor::from(s),
+                        AnyKVector::Two(bv) => Motor::from(bv),
+                        AnyKVector::Four(ps) => Motor::from(ps),
+                        _ => panic!("Bivector * Motor should be motor"),
+                    },
+                    _ => panic!("Bivector * Motor should be motor"),
                 };
-                let Even(t3) = self_g4.geo(m) else {
-                    panic!("Pseudoscalar * Motor should be motor");
+                let t3 = match self_g4.geo(m) {
+                    Even(m) => m,
+                    KVec(kv) => match kv {
+                        AnyKVector::Zero(s) => Motor::from(s),
+                        AnyKVector::Two(bv) => Motor::from(bv),
+                        AnyKVector::Four(ps) => Motor::from(ps),
+                        _ => panic!("Pseudoscalar * Motor should be motor"),
+                    },
+                    _ => panic!("Pseudoscalar * Motor should be motor"),
                 };
                 Even(t1 + t2 + t3)
             }
             Odd(ov) => {
                 let t1 = ov * self_g0;
-                let Odd(t2) = self_g2.geo(ov) else {
-                    panic!("Bivector * odd versor should be odd versor");
+                let t2 = match self_g2.geo(ov) {
+                    Odd(ov) => ov,
+                    KVec(kv) => match kv {
+                        AnyKVector::One(v) => OddVersor::from(v),
+                        AnyKVector::Three(tv) => OddVersor::from(tv),
+                        _ => panic!("Bivector * odd versor should be odd versor"),
+                    },
+                    _ => panic!("Bivector * odd versor should be odd versor"),
                 };
-                let Odd(t3) = self_g4.geo(ov) else {
-                    panic!("Pseudoscalar * odd versor should be odd versor");
+                let t3 = match self_g4.geo(ov) {
+                    Odd(ov) => ov,
+                    KVec(kv) => match kv {
+                        AnyKVector::One(v) => OddVersor::from(v),
+                        AnyKVector::Three(tv) => OddVersor::from(tv),
+                        _ => panic!("Pseudoscalar * odd versor should be odd versor"),
+                    },
+                    _ => panic!("Pseudoscalar * odd versor should be odd versor"),
                 };
                 Odd(t1 + t2 + t3)
             }
@@ -234,19 +340,10 @@ impl Multivector for Motor {
 }
 
 impl Motor {
-    pub fn sqrt(self) -> Self {
-        let mut t1 = self.clone();
-        t1[0] += 1.0;
-        let denom = 2.0 * (1.0 + self[0]);
-        let lhs = t1 / denom.sqrt();
-        let rhs = Self::from((
-            1.0,
-            Bivector::from(Simd::splat(0.0)),
-            Pseudoscalar(self.e(0b1111) / denom),
-        ));
-        match lhs * rhs {
-            Versor::Even(m) => m,
-            _ => panic!("Square root of motor should be a motor"),
+    pub fn sandwich<T: SingleGrade + NonScalar>(self, rhs: T) -> AnyKVector {
+        match self.reverse() * rhs * self {
+            Versor::KVec(kv) => kv,
+            _ => panic!("Sandwich of k-vector should be a k-vector"),
         }
     }
 }
@@ -282,5 +379,49 @@ mod test {
 
         assert_eq!(m * v, expected);
         assert_eq!(v * m, expected_reverse);
+    }
+
+    #[test]
+    fn motor_normalize() {
+        let m = Motor::from([-1.0, 0.0, 0.0, 1.0, -2.0, 0.0, 0.0, 2.0]).normalize();
+        assert!(float_eq(m.magnitude(), 1.0));
+        assert_eq!(m.inverse().unwrap(), m.reverse());
+    }
+
+    #[test]
+    fn rotate_plane() {
+        use std::f32::consts::PI;
+        let p = Vector::from([1.0, 0.0, 0.0, 0.0]);
+        let r = Transformation::Rotation {
+            axis: Bivector::from([0.0, 1.0, 0.0, 0.0, 0.0, 0.0]),
+            angle: PI / 4.0,
+        };
+        let expected = Vector::from([1.0, 0.0, 1.0, 0.0]).normalize();
+        let m = Motor::from(r);
+        assert_eq!(m.reverse() * p * m, Versor::from(expected));
+        assert_eq!(m.sandwich(p), expected.into());
+        assert_eq!(m >> p, expected.into());
+    }
+
+    #[test]
+    fn translate_plane() {
+        let p = Vector::from([1.0, 0.0, 0.0, 0.0]);
+        let dir = Trivector::direction(5.0, 0.0, 0.0);
+        let t = Transformation::Translation { direction: dir };
+        let expected = Vector::from([1.0, 0.0, 0.0, 5.0]).normalize();
+        assert_eq!(Motor::from(t) >> p, expected.into());
+    }
+
+    #[test]
+    fn screw_line() {
+        use std::f32::consts::PI;
+        let x_axis = Bivector::from([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]);
+        let z_axis = Bivector::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let s = Transformation::Screw {
+            axis: z_axis,
+            angle: PI / 4.0,
+            distance: 5.0,
+        };
+        assert_eq!(Motor::from(s) >> x_axis, 0.0.into());
     }
 }
