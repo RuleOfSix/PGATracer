@@ -1,6 +1,36 @@
 use crate::pga_3::*;
+use std::simd::Simd;
 
 pub type Bivector = KVector<2, 6>;
+
+pub const e12: Bivector = Bivector {
+    components: Simd::from_array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+};
+pub const e31: Bivector = Bivector {
+    components: Simd::from_array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0]),
+};
+pub const e23: Bivector = Bivector {
+    components: Simd::from_array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]),
+};
+pub const e01: Bivector = Bivector {
+    components: Simd::from_array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+};
+pub const e02: Bivector = Bivector {
+    components: Simd::from_array([0.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+};
+pub const e03: Bivector = Bivector {
+    components: Simd::from_array([0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+};
+
+impl From<(Trivector, Trivector)> for Bivector {
+    fn from(tvs: (Trivector, Trivector)) -> Self {
+        match tvs.1.is_ideal() {
+            true => tvs.0 & (tvs.0 + tvs.1),
+            false => tvs.0 & tvs.1,
+        }
+        .assert::<Bivector>()
+    }
+}
 
 impl Bivector {
     pub fn exp(&self) -> Motor {

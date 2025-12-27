@@ -213,7 +213,7 @@ impl Multivector for OddVersor {
                 let Odd(t2) = self_g3.geo(m) else {
                     panic!("Trivector * Motor should be odd versor");
                 };
-                Odd(t1 + t2)
+                Versor::from(t1 + t2)
             }
             Odd(ov) => {
                 let Even(t1) = self_g1.geo(ov) else {
@@ -222,7 +222,7 @@ impl Multivector for OddVersor {
                 let Even(t2) = self_g3.geo(ov) else {
                     panic!("Trivector * odd versor should be motor");
                 };
-                Even(t1 + t2)
+                Versor::from(t1 + t2)
             }
         }
     }

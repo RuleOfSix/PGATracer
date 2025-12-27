@@ -1,15 +1,49 @@
 use crate::pga_3::*;
+use std::simd::Simd;
 
 // Basis: e123, e032, e013, e021
 pub type Trivector = KVector<3, 4>;
 
+pub const e123: Trivector = Trivector {
+    components: Simd::from_array([1.0, 0.0, 0.0, 0.0]),
+};
+
+pub const e032: Trivector = Trivector {
+    components: Simd::from_array([0.0, 1.0, 0.0, 0.0]),
+};
+
+pub const e013: Trivector = Trivector {
+    components: Simd::from_array([0.0, 0.0, 1.0, 0.0]),
+};
+
+pub const e021: Trivector = Trivector {
+    components: Simd::from_array([0.0, 0.0, 0.0, 1.0]),
+};
+
 impl Trivector {
+    #[inline]
     pub fn point(x: f32, y: f32, z: f32) -> Self {
         Self::from([1.0, -x, -y, -z])
     }
 
+    #[inline]
     pub fn direction(x: f32, y: f32, z: f32) -> Self {
         Self::from([0.0, -x, -y, -z])
+    }
+
+    #[inline]
+    pub fn x(&self) -> f32 {
+        -self[1] / self[0]
+    }
+
+    #[inline]
+    pub fn y(&self) -> f32 {
+        -self[2] / self[0]
+    }
+
+    #[inline]
+    pub fn z(&self) -> f32 {
+        -self[3] / self[0]
     }
 }
 

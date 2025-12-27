@@ -242,3 +242,14 @@ impl Multivector for Versor {
         }
     }
 }
+
+impl Versor {
+    pub fn assert<T: SingleGrade + 'static>(&self) -> T {
+        use Versor::*;
+        match self {
+            Even(_) => panic!("Assert failed: motor not kvector"),
+            Odd(_) => panic!("Assert failed: oddvector not kvector"),
+            KVec(kv) => kv.assert::<T>(),
+        }
+    }
+}

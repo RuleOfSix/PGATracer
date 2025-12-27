@@ -1,6 +1,7 @@
 use pgatracer::canvas::*;
 use pgatracer::pga_3::*;
 
+/*
 struct Projectile {
     pub position: Trivector,
     pub velocity: Trivector,
@@ -19,30 +20,29 @@ impl Environment {
         }
     }
 }
+*/
 
 fn main() {
-    let env = Environment {
-        gravity: Trivector::direction(0.0, -0.1, 0.0),
-        wind: Trivector::direction(-0.01, 0.0, 0.0),
-    };
-    let mut canv = Canvas::new(900, 550);
-    let red = Color::new(0.89, 0.26, 0.20);
+    use std::f32::consts::PI;
 
-    let mut p = Projectile {
-        position: Trivector::point(0.0, 1.0, 0.0),
-        velocity: Trivector::direction(1.0, 1.8, 0.0).normalize() * 11.25,
-    };
+    let mut canv = Canvas::new(900, 900);
+    let white = Color::new(1.0, 1.0, 1.0);
 
-    let mut ticks = 0;
-    while p.position[2] < 0.0 {
-        p = env.tick(&p);
-        println!("Position: {:?}", p.position);
-        let y = canv.height() - p.position[2].round().abs() as usize;
-        let x = p.position[1].round().abs() as usize;
-        let _ = canv.write_pixel(x, y, red);
-        ticks += 1;
+    let z_axis = Bivector::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    let canvas_correction = Motor::from(Transformation::translation(Trivector::direction(
+        450.0, 450.0, 0.0,
+    )));
+    let twelve = canvas_correction >> Trivector::point(0.0, 400.0, 0.0);
+    let hour_turn = Motor::from(Transformation::rotation(
+        canvas_correction >> z_axis,
+        PI / 6.0,
+    ));
+
+    let mut hour = twelve;
+    for _ in 0..12 {
+        canv.write_pixel(-hour[1] as usize, -hour[2] as usize, white)
+            .unwrap();
+        hour = hour_turn >> hour;
     }
-
-    println!("Ticks until it hit the ground: {ticks}");
     canv.write_file("img.ppm").unwrap();
 }

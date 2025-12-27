@@ -99,8 +99,7 @@ impl From<Transformation> for Motor {
         match t {
             Rotation { axis, angle } => axis.mul(-angle / 2.0).exp(),
             Translation { direction } => {
-                let KVec(Two(bv)) = -(Vector::from([0.0, 0.0, 0.0, 1.0]) * direction.dual()) / 2.0
-                else {
+                let KVec(Two(bv)) = -(e0 * direction.dual()) / 2.0 else {
                     panic!("Line at infinity should be a line");
                 };
                 Self::from((1.0, bv, Pseudoscalar(0.0)))
@@ -110,7 +109,7 @@ impl From<Transformation> for Motor {
                 angle,
                 distance,
             } => {
-                let KVec(Two(bv_i)) = axis * Pseudoscalar(1.0) * distance / 2.0 else {
+                let KVec(Two(bv_i)) = axis * e0123 * distance / 2.0 else {
                     panic!("Line at infinity must be a bivector");
                 };
                 match bv_i.exp() * axis.mul(-angle / 2.0).exp() {
@@ -189,8 +188,8 @@ impl<T: Multivector + NonScalar> Mul<T> for Motor {
     }
 }
 
-impl<T: SingleGrade + NonScalar> Shr<T> for Motor {
-    type Output = AnyKVector;
+impl<T: SingleGrade + NonScalar + 'static> Shr<T> for Motor {
+    type Output = T;
     fn shr(self, rhs: T) -> Self::Output {
         self.sandwich(rhs)
     }
@@ -328,7 +327,7 @@ impl Multivector for Motor {
                     },
                     _ => panic!("Pseudoscalar * Motor should be motor"),
                 };
-                Even(t1 + t2 + t3)
+                Versor::from(t1 + t2 + t3)
             }
             Odd(ov) => {
                 let t1 = ov * self_g0;
@@ -350,16 +349,16 @@ impl Multivector for Motor {
                     },
                     _ => panic!("Pseudoscalar * odd versor should be odd versor"),
                 };
-                Odd(t1 + t2 + t3)
+                Versor::from(t1 + t2 + t3)
             }
         }
     }
 }
 
 impl Motor {
-    pub fn sandwich<T: SingleGrade + NonScalar>(self, rhs: T) -> AnyKVector {
+    pub fn sandwich<T: SingleGrade + NonScalar + 'static>(self, rhs: T) -> T {
         match self.reverse() * rhs * self {
-            Versor::KVec(kv) => kv,
+            Versor::KVec(kv) => kv.assert::<T>(),
             _ => panic!("Sandwich of k-vector should be a k-vector"),
         }
     }
@@ -413,8 +412,8 @@ mod test {
         let expected = Vector::from([1.0, 0.0, 1.0, 0.0]).normalize();
         let m = Motor::from(r);
         assert_eq!(m.reverse() * p * m, Versor::from(expected));
-        assert_eq!(m.sandwich(p), expected.into());
-        assert_eq!(m >> p, expected.into());
+        assert_eq!(m.sandwich(p), expected);
+        assert_eq!(m >> p, expected);
     }
 
     #[test]
@@ -423,7 +422,7 @@ mod test {
         let dir = Trivector::direction(5.0, 0.0, 0.0);
         let t = Transformation::translation(dir);
         let expected = Vector::from([1.0, 0.0, 0.0, 5.0]).normalize();
-        assert_eq!(Motor::from(t) >> p, expected.into());
+        assert_eq!(Motor::from(t) >> p, expected);
     }
 
     #[test]
@@ -456,7 +455,6 @@ mod test {
                 -3.5355343819,
                 0.0
             ])
-            .into()
         );
     }
 }

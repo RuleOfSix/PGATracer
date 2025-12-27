@@ -5,6 +5,8 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 #[derive(Copy, Clone, Debug)]
 pub struct Pseudoscalar(pub f32);
 
+pub const e0123: Pseudoscalar = Pseudoscalar(1.0);
+
 impl PartialEq for Pseudoscalar {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -153,5 +155,14 @@ impl SingleGrade for Pseudoscalar {
             Three(tv) => -tv.inner(self),
             Four(_) => 0.0.into(),
         }
+    }
+
+    #[inline]
+    fn assert<T: SingleGrade + 'static>(self) -> T {
+        use std::any::Any;
+        let Some(res) = (&self as &dyn Any).downcast_ref::<T>() else {
+            panic!("Single-grade assert failed");
+        };
+        *res
     }
 }

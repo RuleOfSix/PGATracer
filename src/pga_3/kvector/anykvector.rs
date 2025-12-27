@@ -269,6 +269,17 @@ impl SingleGrade for AnyKVector {
             Four(ps) => ps.inner(rhs),
         }
     }
+
+    #[inline]
+    fn assert<T: SingleGrade + 'static>(self) -> T {
+        match self {
+            Zero(s) => s.assert::<T>(),
+            One(v) => v.assert::<T>(),
+            Two(bv) => bv.assert::<T>(),
+            Three(tv) => tv.assert::<T>(),
+            Four(ps) => ps.assert::<T>(),
+        }
+    }
 }
 
 impl AnyKVector {

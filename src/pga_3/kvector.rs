@@ -1,16 +1,16 @@
 use crate::pga_3::*;
 use crate::util::*;
 pub use anykvector::*;
-pub use bivector::Bivector;
-pub use pseudoscalar::Pseudoscalar;
-pub use scalar::Scalar;
+pub use bivector::*;
+pub use pseudoscalar::*;
+pub use scalar::*;
 use std::any::Any;
 use std::cmp::PartialEq;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Index, IndexMut, Mul, Neg, Sub};
 use std::simd::{LaneCount, Simd, SupportedLaneCount, f32x4, simd_swizzle};
 use std::slice::SliceIndex;
-pub use trivector::Trivector;
-pub use vector::Vector;
+pub use trivector::*;
+pub use vector::*;
 
 #[macro_use]
 mod anykvector;
@@ -405,6 +405,14 @@ where
         }
     }
 
+    fn normalize(self) -> Self {
+        if K == 3 && self[0] != 0.0 {
+            self / self[0]
+        } else {
+            self / self.magnitude()
+        }
+    }
+
     fn inverse(self) -> Option<Self> {
         match K {
             1 | 3 => {
@@ -470,6 +478,15 @@ where
                 }
             }
         }
+    }
+
+    #[inline]
+    fn assert<T: SingleGrade + 'static>(self) -> T {
+        use std::any::Any;
+        let Some(res) = (&self as &dyn Any).downcast_ref::<T>() else {
+            panic!("Single-grade assert failed");
+        };
+        *res
     }
 }
 

@@ -72,4 +72,13 @@ impl SingleGrade for Scalar {
     fn inner<T: SingleGrade>(self, rhs: T) -> AnyKVector {
         (rhs * self).into()
     }
+
+    #[inline]
+    fn assert<T: SingleGrade + 'static>(self) -> T {
+        use std::any::Any;
+        let Some(res) = (&self as &dyn Any).downcast_ref::<T>() else {
+            panic!("Single-grade assert failed");
+        };
+        *res
+    }
 }
