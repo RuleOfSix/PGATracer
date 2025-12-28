@@ -32,6 +32,18 @@ impl Trivector {
     }
 
     #[inline]
+    pub fn scale(x: f32, y: f32, z: f32) -> Self {
+        Self::from([1.0, x, y, z])
+    }
+
+    #[inline]
+    pub fn reciprocal(self) -> Self {
+        Self {
+            components: Simd::splat(1.0) / self.components,
+        }
+    }
+
+    #[inline]
     pub fn x(&self) -> f32 {
         -self[1] / self[0]
     }

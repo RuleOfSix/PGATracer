@@ -1,10 +1,11 @@
 use crate::pga_3::*;
 use crate::util::float_eq;
-use std::ops::{Add, Div, Mul, Neg, Shr, Sub};
+use std::ops::{Add, Div, Mul, Neg, Shl, Shr, Sub};
 use std::ops::{Index, IndexMut};
 use std::simd::{Simd, simd_swizzle};
 use std::slice::SliceIndex;
 
+#[derive(Debug)]
 pub enum Transformation {
     Rotation {
         axis: Bivector,
@@ -21,15 +22,24 @@ pub enum Transformation {
 }
 
 impl Transformation {
+    #[inline]
     pub fn rotation(axis: Bivector, angle: f32) -> Self {
         Transformation::Rotation {
             axis: axis.normalize(),
             angle,
         }
     }
-    pub fn translation(dir: Trivector) -> Self {
-        Transformation::Translation { direction: dir }
+    #[inline]
+    pub fn translation(direction: Trivector) -> Self {
+        Transformation::Translation { direction }
     }
+    #[inline]
+    pub fn trans_coords(x: f32, y: f32, z: f32) -> Self {
+        Transformation::Translation {
+            direction: Trivector::direction(x, y, z),
+        }
+    }
+    #[inline]
     pub fn screw(axis: Bivector, angle: f32, distance: f32) -> Self {
         Transformation::Screw {
             axis: axis.normalize(),
@@ -99,8 +109,10 @@ impl From<Transformation> for Motor {
         match t {
             Rotation { axis, angle } => axis.mul(-angle / 2.0).exp(),
             Translation { direction } => {
-                let KVec(Two(bv)) = -(e0 * direction.dual()) / 2.0 else {
-                    panic!("Line at infinity should be a line");
+                let bv = match -(e0 * direction.dual()) / 2.0 {
+                    KVec(Two(bv)) => bv,
+                    KVec(Zero(0.0)) => Bivector::from([0.0; 6]),
+                    _ => panic!("Line at infinity should be a line"),
                 };
                 Self::from((1.0, bv, Pseudoscalar(0.0)))
             }
@@ -192,6 +204,13 @@ impl<T: SingleGrade + NonScalar + 'static> Shr<T> for Motor {
     type Output = T;
     fn shr(self, rhs: T) -> Self::Output {
         self.sandwich(rhs)
+    }
+}
+
+impl<T: SingleGrade + NonScalar + 'static> Shl<T> for Motor {
+    type Output = T;
+    fn shl(self, rhs: T) -> Self::Output {
+        self.reverse_sandwich(rhs)
     }
 }
 
@@ -360,6 +379,13 @@ impl Motor {
         match self.reverse() * rhs * self {
             Versor::KVec(kv) => kv.assert::<T>(),
             _ => panic!("Sandwich of k-vector should be a k-vector"),
+        }
+    }
+
+    pub fn reverse_sandwich<T: SingleGrade + NonScalar + 'static>(self, rhs: T) -> T {
+        match self * rhs * self.reverse() {
+            Versor::KVec(kv) => kv.assert::<T>(),
+            _ => panic!("Reverse-sandwich of k-vector should be a k-vector"),
         }
     }
 }

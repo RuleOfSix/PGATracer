@@ -122,7 +122,7 @@ impl Multivector for Pseudoscalar {
             KVec(kv) => self.inner(kv).into(),
             Even(m) => {
                 let ps = Pseudoscalar(m[0] * self.0);
-                let bv = Bivector::from([0.0, 0.0, 0.0, m[2], m[1], m[0]]) * self.0;
+                let bv = Bivector::from([0.0, 0.0, 0.0, -m[3], -m[2], -m[1]]) * self.0;
                 Even(Motor::from((0.0, bv, ps)))
             }
             Odd(ov) => {
@@ -164,5 +164,10 @@ impl SingleGrade for Pseudoscalar {
             panic!("Single-grade assert failed");
         };
         *res
+    }
+
+    #[inline]
+    fn scale(self, _: Trivector) -> Self {
+        panic!("Cannot scale pseudoscalar");
     }
 }

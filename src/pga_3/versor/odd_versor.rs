@@ -197,30 +197,47 @@ impl Multivector for OddVersor {
 
     #[inline]
     fn geo<T: Multivector>(self, rhs: T) -> Versor {
+        use AnyKVector::*;
         use Versor::*;
-        let AnyKVector::One(self_g1) = self.grade(1) else {
+        let One(self_g1) = self.grade(1) else {
             panic!("Grade 1 part of odd versor should be vector");
         };
-        let AnyKVector::Three(self_g3) = self.grade(3) else {
+        let Three(self_g3) = self.grade(3) else {
             panic!("Grade 3 part of odd versor should be trivector");
         };
         match rhs.into() {
             KVec(kv) => kv.reverse().geo(self.reverse()).reverse(),
             Even(m) => {
-                let Odd(t1) = self_g1.geo(m) else {
-                    panic!("Vector * Motor should be odd versor");
+                let t1 = match self_g1.geo(m) {
+                    Odd(ov) => ov,
+                    KVec(Zero(0.0)) => OddVersor::from([0.0; 8]),
+                    KVec(One(v)) => OddVersor::from(v),
+                    KVec(Three(tv)) => OddVersor::from(tv),
+                    _ => panic!("Vector * Motor should be odd versor"),
                 };
-                let Odd(t2) = self_g3.geo(m) else {
-                    panic!("Trivector * Motor should be odd versor");
+                let t2 = match self_g3.geo(m) {
+                    Odd(ov) => ov,
+                    KVec(Zero(0.0)) => OddVersor::from([0.0; 8]),
+                    KVec(One(v)) => OddVersor::from(v),
+                    KVec(Three(tv)) => OddVersor::from(tv),
+                    _ => panic!("Triector * Motor should be odd versor"),
                 };
                 Versor::from(t1 + t2)
             }
             Odd(ov) => {
-                let Even(t1) = self_g1.geo(ov) else {
-                    panic!("Vector * odd versor should be motor");
+                let t1 = match self_g1.geo(ov) {
+                    Even(m) => m,
+                    KVec(Zero(0.0)) => Motor::from([0.0; 8]),
+                    KVec(Two(bv)) => Motor::from(bv),
+                    KVec(Four(ps)) => Motor::from(ps),
+                    _ => panic!("Vector * odd versor should be motor"),
                 };
-                let Even(t2) = self_g3.geo(ov) else {
-                    panic!("Trivector * odd versor should be motor");
+                let t2 = match self_g3.geo(ov) {
+                    Even(m) => m,
+                    KVec(Zero(0.0)) => Motor::from([0.0; 8]),
+                    KVec(Two(bv)) => Motor::from(bv),
+                    KVec(Four(ps)) => Motor::from(ps),
+                    _ => panic!("Trivector * odd versor should be motor"),
                 };
                 Versor::from(t1 + t2)
             }

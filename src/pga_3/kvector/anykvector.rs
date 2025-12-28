@@ -251,6 +251,17 @@ impl Multivector for AnyKVector {
             Four(ps) => ps.geo(rhs),
         }
     }
+
+    #[inline]
+    fn normalize(self) -> Self {
+        match self {
+            Zero(s) => Zero(s),
+            One(v) => One(v.normalize()),
+            Two(bv) => Two(bv.normalize()),
+            Three(tv) => Three(tv.normalize()),
+            Four(ps) => Four(ps.normalize()),
+        }
+    }
 }
 
 impl SingleGrade for AnyKVector {
@@ -278,6 +289,18 @@ impl SingleGrade for AnyKVector {
             Two(bv) => bv.assert::<T>(),
             Three(tv) => tv.assert::<T>(),
             Four(ps) => ps.assert::<T>(),
+        }
+    }
+
+    #[inline]
+    fn scale(self, scale: Trivector) -> Self {
+        use AnyKVector::*;
+        match self {
+            Zero(s) => Zero(s.scale(scale)),
+            One(v) => One(v.scale(scale)),
+            Two(bv) => Two(bv.scale(scale)),
+            Three(tv) => Three(tv.scale(scale)),
+            Four(ps) => Four(ps.scale(scale)),
         }
     }
 }

@@ -203,6 +203,16 @@ impl Multivector for Versor {
     }
 
     #[inline]
+    fn normalize(self) -> Self {
+        use Versor::*;
+        match self {
+            Odd(ov) => Odd(ov.normalize()),
+            Even(m) => Even(m.normalize()),
+            KVec(kv) => KVec(kv.normalize()),
+        }
+    }
+
+    #[inline]
     fn grade_involution(&self) -> Self {
         use Versor::*;
         match self {

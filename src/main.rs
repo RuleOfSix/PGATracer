@@ -1,5 +1,6 @@
 use pgatracer::canvas::*;
 use pgatracer::pga_3::*;
+use pgatracer::raytracing::*;
 
 /*
 struct Projectile {
@@ -24,25 +25,23 @@ impl Environment {
 
 fn main() {
     use std::f32::consts::PI;
+    let mut canv = Canvas::new(1000, 1000);
+    let col = Color::new(0.0, 0.7, 0.7);
 
-    let mut canv = Canvas::new(900, 900);
-    let white = Color::new(1.0, 1.0, 1.0);
+    let camera = Camera::new(e2 + 1.0 * e0);
+    let ray_dir = Trivector::direction(0.0, -1.0, 0.0);
+    let mut sphere = Sphere::new();
+    sphere.transform(Transformation::trans_coords(1.25, 0.0, 1.25).into());
+    sphere.scale = Trivector::scale(0.4, 0.4, 0.4);
 
-    let z_axis = Bivector::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    let canvas_correction = Motor::from(Transformation::translation(Trivector::direction(
-        450.0, 450.0, 0.0,
-    )));
-    let twelve = canvas_correction >> Trivector::point(0.0, 400.0, 0.0);
-    let hour_turn = Motor::from(Transformation::rotation(
-        canvas_correction >> z_axis,
-        PI / 6.0,
-    ));
-
-    let mut hour = twelve;
-    for _ in 0..12 {
-        canv.write_pixel(-hour[1] as usize, -hour[2] as usize, white)
-            .unwrap();
-        hour = hour_turn >> hour;
+    for (x, y) in canv.enumerate().map(|t| (t.0, t.1)).collect::<Vec<_>>() {
+        let ray_source = Trivector::point(x as f32 / 1000.0, 1.0, y as f32 / 1000.0);
+        let ray = Ray::from((ray_source, ray_dir));
+        let xs = ray.intersect(&sphere, &camera);
+        if xs.hit() != None {
+            canv.write_pixel(x, y, col).unwrap();
+        }
     }
+
     canv.write_file("img.ppm").unwrap();
 }

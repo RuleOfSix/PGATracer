@@ -48,6 +48,7 @@ pub trait SingleGrade: Multivector + Into<AnyKVector> {
     fn outer<T: SingleGrade>(self, rhs: T) -> AnyKVector;
     fn inner<T: SingleGrade>(self, rhs: T) -> AnyKVector;
     fn assert<T: SingleGrade + 'static>(self) -> T;
+    fn scale(self, scale: Trivector) -> Self;
 
     fn regressive<T: SingleGrade>(self, rhs: T) -> AnyKVector {
         let Versor::KVec(d1) = self.dual() else {

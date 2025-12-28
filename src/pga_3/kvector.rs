@@ -348,6 +348,7 @@ where
                         };
                         let t2 = match rhs_g2.reverse_geo_kvector(self) {
                             Odd(ov) => ov,
+                            KVec(Zero(0.0)) => OddVersor::from([0.0; 8]),
                             KVec(One(v)) => OddVersor::from(v),
                             KVec(Three(tv)) => OddVersor::from(tv),
                             _ => panic!("Odd K-Vector * Motor should be an odd versor"),
@@ -487,6 +488,46 @@ where
             panic!("Single-grade assert failed");
         };
         *res
+    }
+
+    #[inline]
+    fn scale(self, scale: Trivector) -> Self {
+        #[allow(bad_style)]
+        type f32x6 = Simd<f32, 6>;
+        match K {
+            1 => {
+                let mut res = self;
+                res[3] = self[3] * (self | scale.undual().assert::<Vector>()).assert::<Scalar>()
+                    / (self[0] + self[1] + self[2]);
+                res
+            }
+            2 => {
+                let offset = e123 - ((e123 | self) * self).assert::<Trivector>().normalize();
+                let t = Transformation::translation(Trivector::from(
+                    offset.components - offset.components * scale.components,
+                ));
+                let mut res = Motor::from(t) >> self;
+                let x_scale = if self[0] != 0.0 { scale[3] } else { 1.0 };
+                let y_scale = if self[1] != 0.0 { scale[2] } else { 1.0 };
+                let z_scale = if self[2] != 0.0 { scale[1] } else { 1.0 };
+                res.components = res.components
+                    * f32x6::from([
+                        scale[3],
+                        scale[2],
+                        scale[1],
+                        y_scale * z_scale,
+                        x_scale * z_scale,
+                        x_scale * y_scale,
+                    ])
+                    .extract::<0, N>();
+                res
+            }
+            3 => {
+                let new = self.components.extract::<0, 4>() * scale.components;
+                Self::from(Simd::load_or(new.as_array(), Simd::from([0.0; N])))
+            }
+            _ => panic!("Invalid K-vector grade"),
+        }
     }
 }
 
