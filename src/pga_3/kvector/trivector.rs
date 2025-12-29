@@ -1,4 +1,5 @@
 use crate::pga_3::*;
+use crate::util::float_eq;
 use std::simd::Simd;
 
 // Basis: e123, e032, e013, e021
@@ -38,8 +39,17 @@ impl Trivector {
 
     #[inline]
     pub fn reciprocal(self) -> Self {
+        let new_components: [f32; 4] = self
+            .components
+            .as_array()
+            .iter()
+            .map(|f| if !float_eq(*f, 0.0) { 1.0 / *f } else { *f })
+            .collect::<Vec<f32>>()
+            .try_into()
+            .expect("Should still be four components after mapping");
+
         Self {
-            components: Simd::splat(1.0) / self.components,
+            components: Simd::from(new_components),
         }
     }
 
@@ -62,7 +72,6 @@ impl Trivector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::*;
 
     #[test]
     fn basic_point() {

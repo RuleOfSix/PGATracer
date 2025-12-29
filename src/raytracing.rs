@@ -2,13 +2,14 @@ use crate::pga_3::*;
 pub use geometry::*;
 
 pub mod geometry;
+pub mod lighting;
 
 pub type Ray = Bivector;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Intersection<'a> {
-    t: f32,
-    obj: Object<'a>,
+    pub t: f32,
+    pub obj: Object<'a>,
 }
 
 #[derive(Debug)]
@@ -25,6 +26,16 @@ impl Camera {
     #[inline]
     pub fn plane(&self) -> Vector {
         self.plane
+    }
+}
+
+impl Trivector {
+    #[inline]
+    pub fn reflect(self, surface: Vector) -> Trivector {
+        let iv = self.dual().assert::<Vector>();
+        (iv - surface * 2.0 * (iv | surface).assert::<Scalar>())
+            .undual()
+            .assert::<Trivector>()
     }
 }
 
@@ -82,8 +93,8 @@ impl Ray {
     }
 
     pub fn intersect<'a>(self, s: &'a Sphere, c: &Camera) -> Vec<Intersection<'a>> {
-        let self_t = s.transform << self.scale(s.scale.reciprocal());
-        let c_t = Camera::new(s.transform << c.plane().scale(s.scale.reciprocal()));
+        let self_t = (s.transform << self).scale(s.scale.reciprocal());
+        let c_t = Camera::new((s.transform << c.plane()).scale(s.scale.reciprocal()));
 
         let m = self_t.normalize() * e123;
 
@@ -359,5 +370,19 @@ mod test {
         assert_eq!(xs.len(), 2);
         assert_eq!(xs[0].t, 6.0);
         assert_eq!(xs[1].t, 4.0);
+    }
+
+    #[test]
+    fn reflect_incoming_45_deg() {
+        let v = Trivector::direction(1.0, -1.0, 0.0);
+        let n = Vector::from([0.0, 1.0, 0.0, 0.0]);
+        assert_eq!(v.reflect(n), Trivector::direction(1.0, 1.0, 0.0));
+    }
+
+    #[test]
+    fn reflect_off_slanted() {
+        let v = Trivector::direction(0.0, -1.0, 0.0);
+        let n = Vector::from([f32::sqrt(2.0) / 2.0, f32::sqrt(2.0) / 2.0, 0.0, 0.0]);
+        assert_eq!(v.reflect(n), Trivector::direction(1.0, 0.0, 0.0));
     }
 }

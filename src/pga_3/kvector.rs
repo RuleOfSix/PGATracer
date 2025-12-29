@@ -376,11 +376,20 @@ where
                 };
                 match K % 2 {
                     0 => {
-                        let Odd(t1) = rhs_g1.reverse_geo_kvector(self) else {
-                            panic!("vector * bivector should be an odd versor");
+                        use std::simd::f32x8;
+                        let t1 = match rhs_g1.reverse_geo_kvector(self) {
+                            Odd(ov) => ov,
+                            KVec(Zero(0.0)) => OddVersor::from(f32x8::splat(0.0)),
+                            KVec(One(v)) => OddVersor::from(v),
+                            KVec(Three(tv)) => OddVersor::from(tv),
+                            _ => panic!("vector * bivector should be an odd versor"),
                         };
-                        let Odd(t2) = rhs_g3.reverse_geo_kvector(self) else {
-                            panic!("trivector * bivector should be an odd versor");
+                        let t2 = match rhs_g3.reverse_geo_kvector(self) {
+                            Odd(ov) => ov,
+                            KVec(Zero(0.0)) => OddVersor::from(f32x8::splat(0.0)),
+                            KVec(One(v)) => OddVersor::from(v),
+                            KVec(Three(tv)) => OddVersor::from(tv),
+                            _ => panic!("trivector * bivector should be an odd versor"),
                         };
                         Versor::from(t1 + t2)
                     }

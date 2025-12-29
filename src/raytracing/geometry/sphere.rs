@@ -1,4 +1,5 @@
 use crate::pga_3::*;
+use crate::raytracing::lighting::Material;
 use rand::prelude::*;
 
 #[derive(Debug)]
@@ -6,6 +7,7 @@ pub struct Sphere {
     id: u32,
     pub transform: Motor,
     pub scale: Trivector,
+    pub material: Material,
 }
 
 impl PartialEq for Sphere {
@@ -21,6 +23,7 @@ impl Sphere {
             id: rand::rng().random::<u32>(),
             transform: Motor::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             scale: Trivector::from([1.0, 1.0, 1.0, 1.0]),
+            material: Material::new(),
         }
     }
 
@@ -36,9 +39,12 @@ impl Sphere {
 
     #[inline]
     pub fn surface_at(&self, p: Trivector) -> Vector {
-        let p = ((self.transform << p) - e123).scale(self.scale.reciprocal());
-        let s = (self.transform >> p).scale(self.scale);
-        Vector::from([-s[1], -s[2], -s[3], 0.0])
+        let p = (self.transform << p.scale(self.scale.reciprocal())) - e123;
+        let mut s = (self.transform >> Vector::from([-p[1], -p[2], -p[3], 0.0]))
+            .scale(self.scale)
+            .scale_slope(self.scale);
+        s[3] = 0.0;
+        s.normalize()
     }
 }
 
@@ -125,6 +131,24 @@ mod test {
         s.transform(Transformation::rotation(e12, PI / 5.0).into());
         s.scale = Trivector::scale(1.0, 0.5, 1.0);
         let p = Trivector::point(0.0, f32::sqrt(2.0) / 2.0, -f32::sqrt(2.0) / 2.0);
+
+        dbg!(p);
+        dbg!(p.scale(s.scale));
+        dbg!((s.transform >> (s.transform << p.scale(s.scale.reciprocal()))).scale(s.scale));
         assert_eq!(s.surface_at(p), Vector::from([0.0, 0.97014, -0.24254, 0.0]));
+    }
+
+    #[test]
+    fn sphere_default_material() {
+        assert_eq!(Sphere::new().material, Material::new());
+    }
+
+    #[test]
+    fn sphere_material_assignable() {
+        let mut s = Sphere::new();
+        let mut m = Material::new();
+        m.ambient = 1.0;
+        s.material = m.clone();
+        assert_eq!(s.material, m);
     }
 }

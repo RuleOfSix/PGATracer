@@ -2,6 +2,9 @@ use crate::util::float_eq;
 use std::cmp::PartialEq;
 use std::ops::{Add, Mul, Sub};
 
+pub const BLACK: Color = Color::new(0.0, 0.0, 0.0);
+pub const WHITE: Color = Color::new(1.0, 1.0, 1.0);
+
 #[derive(Copy, Clone, Debug)]
 pub struct Color {
     pub red: f32,
@@ -66,7 +69,7 @@ impl Mul for Color {
 }
 
 impl Color {
-    pub fn new(red: f32, green: f32, blue: f32) -> Self {
+    pub const fn new(red: f32, green: f32, blue: f32) -> Self {
         Color { red, green, blue }
     }
 }

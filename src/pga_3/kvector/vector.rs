@@ -1,4 +1,4 @@
-use super::KVector;
+use super::*;
 use std::simd::Simd;
 
 pub type Vector = KVector<1, 4>;
@@ -14,3 +14,9 @@ pub const e3: Vector = Vector {
 pub const e0: Vector = Vector {
     components: Simd::from_array([0.0, 0.0, 0.0, 1.0]),
 };
+
+impl Vector {
+    pub fn scale_slope(self, scale: Trivector) -> Self {
+        Vector::from(self.components * scale.undual().assert::<Vector>().components)
+    }
+}
