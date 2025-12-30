@@ -1,32 +1,54 @@
+use super::Sealed;
+use crate::intersections;
 use crate::pga_3::*;
-use crate::raytracing::lighting::Material;
-use rand::prelude::*;
+use crate::raytracing::lighting::*;
+use crate::raytracing::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Sphere {
-    id: u32,
     pub transform: Motor,
     pub scale: Trivector,
     pub material: Material,
 }
 
-impl PartialEq for Sphere {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+impl Sealed for Sphere {}
+impl Obj for Sphere {
+    fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
+        let self_t = (self.transform << r).scale(self.scale.reciprocal());
+        let c_t = Camera::new((self.transform << c.plane()).scale(self.scale.reciprocal()));
+
+        let m = self_t.normalize() * e123;
+
+        let d_squared = 1.0 - m.grade(3).dual().magnitude().powi(2);
+
+        if d_squared < 0.0 {
+            return vec![];
+        }
+
+        let p1 = self_t ^ m.grade(1).assert::<Vector>() + e0 * f32::sqrt(d_squared);
+        let p2 = self_t ^ (m.grade(1).assert::<Vector>() - e0 * f32::sqrt(d_squared));
+
+        let t1 = self_t.when(p1.assert::<Trivector>().normalize(), &c_t);
+        let t2 = self_t.when(p2.assert::<Trivector>().normalize(), &c_t);
+
+        intersections![
+            new(t2.expect("t1 should exist"), ObjectRef::Sphere(&self)),
+            new(t1.expect("t2 should exist"), ObjectRef::Sphere(&self))
+        ]
     }
 }
 
 impl Sphere {
+    #[inline]
     pub fn new() -> Self {
         Sphere {
-            id: rand::rng().random::<u32>(),
             transform: Motor::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-            scale: Trivector::from([1.0, 1.0, 1.0, 1.0]),
+            scale: Trivector::scale(1.0, 1.0, 1.0),
             material: Material::new(),
         }
     }
 
+    #[inline]
     pub fn transform(&mut self, m: Motor) {
         self.transform = match m * self.transform {
             Versor::Even(m) => m,
@@ -42,7 +64,7 @@ impl Sphere {
         let p = (self.transform << p.scale(self.scale.reciprocal())) - e123;
         let mut s = (self.transform >> Vector::from([-p[1], -p[2], -p[3], 0.0]))
             .scale(self.scale)
-            .scale_slope(self.scale);
+            .scale_slope(self.scale.reciprocal());
         s[3] = 0.0;
         s.normalize()
     }
@@ -150,5 +172,143 @@ mod test {
         m.ambient = 1.0;
         s.material = m.clone();
         assert_eq!(s.material, m);
+    }
+
+    #[test]
+    fn intersect_sphere_twice() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let s = Sphere::new();
+        let c = Camera::new(e3 - 5.0 * e0);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, 4.0);
+        assert_eq!(xs[1].t, 6.0);
+    }
+
+    #[test]
+    fn intersect_sphere_once() {
+        let p = Trivector::point(0.0, 1.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let s = Sphere::new();
+        let c = Camera::new(e3 - 5.0 * e0);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, 5.0);
+        assert_eq!(xs[1].t, 5.0);
+    }
+
+    #[test]
+    fn intersect_sphere_none() {
+        let p = Trivector::point(0.0, 1.2, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let mut s = Sphere::new();
+        s.transform(Transformation::rotation(e23, 3.141592 / 4.0).into());
+        let c = Camera::new(e3 - 5.0 * e3);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 0);
+    }
+
+    #[test]
+    fn intersect_sphere_inside() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let s = Sphere::new();
+        let c = Camera::new(e3);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, -1.0);
+        assert_eq!(xs[1].t, 1.0);
+    }
+
+    #[test]
+    fn intersect_sphere_behind() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let s = Sphere::new();
+        let c = Camera::new(e3 + 5.0 * e0);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, -6.0);
+        assert_eq!(xs[1].t, -4.0);
+    }
+
+    #[test]
+    fn intersect_sets_obj() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let s = Sphere::new();
+        let c = Camera::new(e3);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].obj, ObjectRef::Sphere(&s));
+        assert_eq!(xs[1].obj, ObjectRef::Sphere(&s));
+    }
+
+    #[test]
+    fn intersect_scaled_sphere() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let c = Camera::new(e3 - 5.0 * e0);
+
+        let mut s = Sphere::new();
+        s.scale = Trivector::scale(2.0, 2.0, 2.0);
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, 3.0);
+        assert_eq!(xs[1].t, 7.0);
+    }
+
+    #[test]
+    fn intersect_translated_sphere() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let c = Camera::new(e3 - 5.0 * e0);
+
+        let mut s = Sphere::new();
+        s.transform = Motor::from(Transformation::trans_coords(5.0, 0.0, 0.0));
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 0);
+    }
+
+    #[test]
+    fn intersect_rotated_sphere() {
+        let p = Trivector::point(0.0, 0.0, -5.0);
+        let d = Trivector::direction(0.0, 0.0, 1.0);
+        let r = Ray::from((p, d));
+        let c = Camera::new(e3 - 5.0 * e0);
+
+        let mut s = Sphere::new();
+        s.transform(Transformation::rotation(e12, 3.141592 / 2.0).into());
+
+        let xs = s.intersect(r, &c);
+
+        assert_eq!(xs.len(), 2);
+        assert_eq!(xs[0].t, 4.0);
+        assert_eq!(xs[1].t, 6.0);
     }
 }

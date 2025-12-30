@@ -3,6 +3,11 @@ use crate::pga_3::*;
 use crate::util::float_eq;
 
 #[derive(Debug, PartialEq)]
+pub enum Light {
+    Point(PointLight),
+}
+
+#[derive(Debug, PartialEq)]
 pub struct PointLight {
     pub position: Trivector,
     pub intensity: Color,

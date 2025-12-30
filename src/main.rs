@@ -23,11 +23,11 @@ fn main() {
         let ray_source =
             Trivector::point((x as f32 - 500.0) / 600.0, 1.0, (y as f32 - 500.0) / 600.0);
         let ray = Ray::from((ray_source, ray_dir));
-        let xs = ray.intersect(&sphere, &camera);
+        let xs = sphere.intersect(ray, &camera);
         if let Some(h) = xs.hit() {
             let point = ray.position(h.t, &camera);
             let surface = sphere.surface_at(point);
-            let Object::Sphere(s) = h.obj;
+            let ObjectRef::Sphere(s) = h.obj;
             let eye = -ray.forwards();
             let color = point.lighting(&s.material, &light, eye, surface);
             canv.write_pixel(x, y, color).unwrap();
