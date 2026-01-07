@@ -25,7 +25,7 @@ pub const e03: Bivector = Bivector {
 impl From<(Trivector, Trivector)> for Bivector {
     fn from(tvs: (Trivector, Trivector)) -> Self {
         match tvs.1.is_ideal() {
-            true => tvs.0 & (tvs.0 + tvs.1),
+            true => (tvs.0 + tvs.1) & tvs.0,
             false => tvs.0 & tvs.1,
         }
         .assert::<Bivector>()

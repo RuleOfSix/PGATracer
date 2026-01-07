@@ -125,7 +125,7 @@ impl From<Transformation> for Motor {
                     panic!("Line at infinity must be a bivector");
                 };
                 match bv_i.exp() * axis.mul(-angle / 2.0).exp() {
-                    Even(m) => m,
+                    Even(m) => m.normalize(),
                     _ => panic!("Screw motion should be a motor"),
                 }
             }
@@ -426,7 +426,7 @@ mod test {
     #[test]
     fn motor_normalize() {
         let m = Motor::from([-1.0, 0.0, 0.0, 1.0, -2.0, 0.0, 0.0, 2.0]).normalize();
-        assert!(float_eq(m.magnitude(), 1.0));
+        assert!(float_eq(dbg!(m.magnitude()), 1.0));
         assert_eq!(m.inverse().unwrap(), m.reverse());
     }
 

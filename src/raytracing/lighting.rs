@@ -2,12 +2,12 @@ use crate::canvas::*;
 use crate::pga_3::*;
 use crate::util::float_eq;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Light {
     Point(PointLight),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PointLight {
     pub position: Trivector,
     pub intensity: Color,
@@ -56,7 +56,11 @@ impl Material {
 }
 
 impl Trivector {
-    pub fn lighting(self, m: &Material, l: &PointLight, eye: Trivector, surface: Vector) -> Color {
+    pub fn lighting(self, m: &Material, l: &Light, eye: Vector, surface: Vector) -> Color {
+        #[allow(irrefutable_let_patterns)]
+        let Light::Point(l) = l else {
+            panic!("Non-point lights not implemented.");
+        };
         let color = m.color * l.intensity;
         let lightv = (l.position - self).normalize();
         let ambient = color * m.ambient;
@@ -69,7 +73,7 @@ impl Trivector {
 
         let diffuse = color * m.diffuse * cos_light_normal;
         let reflectv = (-lightv).reflect(surface).dual().assert::<Vector>();
-        let cos_reflect_eye = (eye.dual().assert::<Vector>() | reflectv).assert::<Scalar>();
+        let cos_reflect_eye = (eye | reflectv).assert::<Scalar>();
 
         if cos_reflect_eye <= 0.0 {
             return ambient + diffuse;
@@ -108,11 +112,13 @@ mod test {
         let m = Material::new();
         let pos = e123;
 
-        let eye = Trivector::direction(0.0, 0.0, -1.0);
+        let eye = Trivector::direction(0.0, 0.0, -1.0)
+            .dual()
+            .assert::<Vector>();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &light, eye, surface),
+            pos.lighting(&m, &Light::Point(light), eye, surface),
             Color::new(1.9, 1.9, 1.9)
         );
     }
@@ -125,7 +131,15 @@ mod test {
         let eye = Trivector::direction(0.0, f32::sqrt(2.0) / 2.0, -f32::sqrt(2.0) / 2.0);
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
-        assert_eq!(pos.lighting(&m, &light, eye, surface), WHITE);
+        assert_eq!(
+            pos.lighting(
+                &m,
+                &Light::Point(light),
+                eye.dual().assert::<Vector>(),
+                surface
+            ),
+            WHITE
+        );
     }
 
     #[test]
@@ -133,11 +147,13 @@ mod test {
         let m = Material::new();
         let pos = e123;
 
-        let eye = Trivector::direction(0.0, 0.0, -1.0);
+        let eye = Trivector::direction(0.0, 0.0, -1.0)
+            .dual()
+            .assert::<Vector>();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 10.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &light, eye, surface),
+            pos.lighting(&m, &Light::Point(light), eye, surface),
             Color::new(0.7364, 0.7364, 0.7364)
         );
     }
@@ -151,7 +167,12 @@ mod test {
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 10.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &light, eye, surface),
+            pos.lighting(
+                &m,
+                &Light::Point(light),
+                eye.dual().assert::<Vector>(),
+                surface
+            ),
             Color::new(1.6364, 1.6364, 1.6364)
         );
     }
@@ -166,7 +187,12 @@ mod test {
         let light = PointLight::new(Trivector::point(0.0, 0.0, 10.0), WHITE);
 
         assert_eq!(
-            pos.lighting(&m, &light, eye, surface),
+            pos.lighting(
+                &m,
+                &Light::Point(light),
+                eye.dual().assert::<Vector>(),
+                surface
+            ),
             Color::new(0.1, 0.1, 0.1)
         );
     }

@@ -5,34 +5,77 @@ use pgatracer::raytracing::*;
 
 fn main() {
     use std::f32::consts::PI;
-    let mut canv = Canvas::new(1000, 1000);
+    let cam_loc = Trivector::point(0.0, 1.5, -5.0);
+    let cam_target = Trivector::point(0.0, 1.0, 0.0);
 
-    let camera = Camera::new(e2 + 1.0 * e0);
-    let ray_dir = Trivector::direction(0.0, -1.0, 0.0);
-    let mut sphere = Sphere::new();
-    sphere.material.color = Color::new(0.5, 0.0, 0.5);
-    sphere.scale = Trivector::scale(0.5, 0.1, 1.0);
-    sphere.transform(Transformation::rotation(e31, PI / 4.0).into());
-    sphere.transform(Transformation::rotation(e23, PI / 6.0).into());
+    let camera = Camera::new(
+        cam_loc,
+        (cam_target - cam_loc).normalize(),
+        -e013,
+        1000,
+        500,
+        PI / 3.0,
+    );
 
-    let light_pos = Trivector::point(-0.25, 2.0, -0.25);
-    let light_color = WHITE;
-    let light = PointLight::new(light_pos, light_color);
+    let mut room_material = Material::new();
+    room_material.color = Color::new(1.0, 0.9, 0.9);
+    room_material.specular = 0.0;
 
-    for (x, y) in canv.enumerate().map(|t| (t.0, t.1)).collect::<Vec<_>>() {
-        let ray_source =
-            Trivector::point((x as f32 - 500.0) / 600.0, 1.0, (y as f32 - 500.0) / 600.0);
-        let ray = Ray::from((ray_source, ray_dir));
-        let xs = sphere.intersect(ray, &camera);
-        if let Some(h) = xs.hit() {
-            let point = ray.position(h.t, &camera);
-            let surface = sphere.surface_at(point);
-            let ObjectRef::Sphere(s) = h.obj;
-            let eye = -ray.forwards();
-            let color = point.lighting(&s.material, &light, eye, surface);
-            canv.write_pixel(x, y, color).unwrap();
-        }
-    }
+    let mut floor_s = Sphere::new();
+    floor_s.scale = Trivector::scale(10.0, 0.01, 10.0);
+    floor_s.material = room_material.clone();
+    let floor = Object::Sphere(floor_s);
 
-    canv.write_file("img.ppm").unwrap();
+    let mut left_wall = Sphere::new();
+    left_wall.scale = Trivector::scale(10.0, 0.01, 10.0);
+    left_wall.material = room_material.clone();
+    left_wall.transform_t(Transformation::rotation(e12, PI / 2.0));
+    left_wall.transform_t(Transformation::rotation(e31, PI / -4.0));
+    left_wall.transform_t(Transformation::trans_coords(0.0, 0.0, 5.0));
+    left_wall.normalize();
+    let left_wall = Object::Sphere(left_wall);
+
+    let mut right_wall = Sphere::new();
+    right_wall.scale = Trivector::scale(10.0, 0.01, 10.0);
+    right_wall.material = room_material.clone();
+    right_wall.transform_t(Transformation::rotation(e12, PI / 2.0));
+    right_wall.transform_t(Transformation::rotation(e31, PI / 4.0));
+    right_wall.transform_t(Transformation::trans_coords(0.0, 0.0, 5.0));
+    right_wall.normalize();
+    let right_wall = Object::Sphere(right_wall);
+
+    let mut middle = Sphere::new();
+    middle.transform_t(Transformation::trans_coords(-0.5, 1.0, 0.5));
+    middle.material.color = Color::new(0.1, 1.0, 0.5);
+    middle.material.diffuse = 0.7;
+    middle.material.specular = 0.3;
+    let middle = Object::Sphere(middle);
+
+    let mut right = Sphere::new();
+    right.transform_t(Transformation::trans_coords(1.5, 0.5, -0.5));
+    right.scale = Trivector::scale(0.5, 0.5, 0.5);
+    right.material.color = Color::new(0.5, 1.0, 0.1);
+    right.material.diffuse = 0.7;
+    right.material.specular = 0.3;
+    let right = Object::Sphere(right);
+
+    let mut left = Sphere::new();
+    left.transform_t(Transformation::trans_coords(-1.5, 0.33, -0.75));
+    left.scale = Trivector::scale(0.33, 0.33, 0.33);
+    left.material.color = Color::new(1.0, 0.8, 0.1);
+    left.material.diffuse = 0.7;
+    left.material.specular = 0.3;
+    let left = Object::Sphere(left);
+
+    let light = Light::Point(PointLight::new(
+        Trivector::point(-10.0, 10.0, -10.),
+        Color::new(1.0, 1.0, 1.0),
+    ));
+
+    let mut world = World::new();
+    world.camera = camera;
+    world.objects = vec![floor, left_wall, right_wall, left, middle, right];
+    world.lights = vec![light];
+
+    world.render().write_file("img.ppm").unwrap();
 }

@@ -1,4 +1,3 @@
-use crate::util::float_eq;
 use std::cmp::PartialEq;
 use std::ops::{Add, Mul, Sub};
 
@@ -14,9 +13,10 @@ pub struct Color {
 
 impl PartialEq for Color {
     fn eq(&self, other: &Self) -> bool {
-        float_eq(self.red, other.red)
-            && float_eq(self.green, other.green)
-            && float_eq(self.blue, other.blue)
+        const COLOR_EPSILON: f32 = 0.001;
+        f32::abs(self.red - other.red) < COLOR_EPSILON
+            && f32::abs(self.green - other.green) < COLOR_EPSILON
+            && f32::abs(self.blue - other.blue) < COLOR_EPSILON
     }
 }
 

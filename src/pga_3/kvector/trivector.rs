@@ -23,13 +23,17 @@ pub const e021: Trivector = Trivector {
 
 impl Trivector {
     #[inline]
-    pub fn point(x: f32, y: f32, z: f32) -> Self {
-        Self::from([1.0, -x, -y, -z])
+    pub const fn point(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            components: Simd::from_array([1.0, -x, -y, -z]),
+        }
     }
 
     #[inline]
-    pub fn direction(x: f32, y: f32, z: f32) -> Self {
-        Self::from([0.0, -x, -y, -z])
+    pub const fn direction(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            components: Simd::from_array([0.0, -x, -y, -z]),
+        }
     }
 
     #[inline]

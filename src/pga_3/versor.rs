@@ -32,7 +32,15 @@ where
 {
     #[inline]
     fn from(kv: KVector<K, N>) -> Self {
+        /*
+        if !is_zero(&kv[0..N]) {
+        */
         Self::KVec(kv.into())
+        /*
+        } else {
+            Self::KVec(AnyKVector::Zero(0.0))
+        }
+        */
     }
 }
 

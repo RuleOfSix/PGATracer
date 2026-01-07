@@ -41,6 +41,16 @@ impl Canvas {
     }
 
     #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &Color> {
+        self.grid.iter().flatten()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Color> {
+        self.grid.iter_mut().flatten()
+    }
+
+    #[inline]
     pub fn enumerate(&self) -> impl Iterator<Item = (usize, usize, &Color)> {
         self.grid
             .iter()
@@ -48,6 +58,24 @@ impl Canvas {
             .flat_map(|(y, r): (usize, &Vec<Color>)| {
                 r.iter().enumerate().map(move |(x, c)| (x, y, c))
             })
+    }
+
+    #[inline]
+    pub fn enumerate_mut(&mut self) -> impl Iterator<Item = (usize, usize, &mut Color)> {
+        self.grid
+            .iter_mut()
+            .enumerate()
+            .flat_map(|(y, r): (usize, &mut Vec<Color>)| {
+                r.iter_mut().enumerate().map(move |(x, c)| (x, y, c))
+            })
+    }
+
+    #[inline]
+    pub fn enumerate_coords(&self) -> impl Iterator<Item = (usize, usize)> {
+        self.grid
+            .iter()
+            .enumerate()
+            .flat_map(|(y, r)| r.iter().enumerate().map(move |(x, _)| (x, y)))
     }
 
     pub fn write_pixel(&mut self, x: usize, y: usize, color: Color) -> Result<(), &'static str> {

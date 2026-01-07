@@ -333,8 +333,10 @@ where
                             _ => panic!("Bivector * Bivector should be a motor"),
                         };
                         let t3 = {
-                            let Two(bv) = self.inner(m.grade(4)) else {
-                                panic!("Bivector | Pseudoscalar should be a bivector");
+                            let bv = match self.inner(m.grade(4)) {
+                                Zero(0.0) => Bivector::from([0.0; 6]),
+                                Two(bv) => bv,
+                                _ => panic!("Bivector | Pseudoscalar should be a bivector"),
                             };
                             Motor::from(bv)
                         };
@@ -394,11 +396,19 @@ where
                         Versor::from(t1 + t2)
                     }
                     1 => {
-                        let Even(t1) = rhs_g1.reverse_geo_kvector(self) else {
-                            panic!("vector * odd k-vector should be a motor");
+                        let t1 = match rhs_g1.reverse_geo_kvector(self) {
+                            Even(m) => m,
+                            KVec(Zero(s)) => Motor::from(s),
+                            KVec(Two(bv)) => Motor::from(bv),
+                            KVec(Four(ps)) => Motor::from(ps),
+                            _ => panic!("vector * odd k-vector should be a motor"),
                         };
-                        let Even(t2) = rhs_g3.reverse_geo_kvector(self) else {
-                            panic!("trivector * odd k-vector should be a motor");
+                        let t2 = match rhs_g3.reverse_geo_kvector(self) {
+                            Even(m) => m,
+                            KVec(Zero(s)) => Motor::from(s),
+                            KVec(Two(bv)) => Motor::from(bv),
+                            KVec(Four(ps)) => Motor::from(ps),
+                            _ => panic!("trivector * odd k-vector should be a motor"),
                         };
                         Versor::from(t1 + t2)
                     }
@@ -432,14 +442,14 @@ where
                 Some(self.reverse() / self.magnitude().powi(2))
             }
             2 => {
-                let Versor::Even(mut square) = self * self else {
-                    let Versor::KVec(AnyKVector::Zero(s)) = self * self else {
-                        panic!("Square of bivector should be scalar + pseudoscalar");
-                    };
-                    return Some(self / s);
+                let mut square = match self * self {
+                    Versor::Even(m) => m,
+                    Versor::KVec(AnyKVector::Zero(s)) => Motor::from(s),
+                    Versor::KVec(AnyKVector::Four(ps)) => Motor::from(ps),
+                    _ => panic!("Square of bivector should be scalar + pseudoscalar"),
                 };
                 square[7] = -square[7];
-                match self * (square / square[0].powi(2)) {
+                match (self * square) / square[0].powi(2) {
                     Versor::KVec(AnyKVector::Two(bv)) => {
                         Some(Self::from(bv.components.extract::<0, N>()))
                     }
@@ -502,7 +512,7 @@ where
     #[inline]
     fn scale(self, scale: Trivector) -> Self {
         #[allow(bad_style)]
-        type f32x6 = Simd<f32, 6>;
+        // type f32x6 = Simd<f32, 6>;
         match K {
             1 => {
                 let mut res = self;
@@ -511,25 +521,36 @@ where
                 res
             }
             2 => {
+                let origin = ((e123 | self) * self)
+                    .normalize()
+                    .assert::<Trivector>()
+                    .scale(scale);
+                let forwards = Trivector::from([0.0, -self[2], -self[1], -self[0]]);
+                ((origin + forwards.scale(scale)) & origin).assert::<Self>()
+
+                /*
                 let offset = e123 - ((e123 | self) * self).assert::<Trivector>().normalize();
                 let t = Transformation::translation(Trivector::from(
                     offset.components - offset.components * scale.components,
                 ));
                 let mut res = Motor::from(t) >> self;
-                let x_scale = if self[0] != 0.0 { scale[3] } else { 1.0 };
-                let y_scale = if self[1] != 0.0 { scale[2] } else { 1.0 };
-                let z_scale = if self[2] != 0.0 { scale[1] } else { 1.0 };
                 res.components = res.components
-                    * f32x6::from([
-                        scale[3],
-                        scale[2],
-                        scale[1],
-                        y_scale * z_scale,
-                        x_scale * z_scale,
-                        x_scale * y_scale,
-                    ])
-                    .extract::<0, N>();
+                    * f32x6::from([scale[3], scale[2], scale[1], 1.0, 1.0, 1.0]).extract::<0, N>();
+                if !self.is_ideal() {
+                    let scaling_factor = res.eucl_norm() / self.eucl_norm();
+                    res.components = res.components
+                        * f32x6::from([
+                            1.0,
+                            1.0,
+                            1.0,
+                            scaling_factor,
+                            scaling_factor,
+                            scaling_factor,
+                        ])
+                        .extract::<0, N>();
+                }
                 res
+                */
             }
             3 => {
                 let new = self.components.extract::<0, 4>() * scale.components;
