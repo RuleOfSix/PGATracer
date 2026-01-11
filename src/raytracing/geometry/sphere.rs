@@ -14,9 +14,8 @@ pub struct Sphere {
 
 impl Sealed for Sphere {}
 impl Obj for Sphere {
-    fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
-        // let r_t = (self.transform << r).scale(self.scale.reciprocal());
-        let origin = (self.transform << c.location).scale(self.scale.reciprocal());
+    fn intersect_from_origin(&self, r: Ray, origin: Trivector) -> Vec<Intersection<'_>> {
+        let origin = (self.transform << origin).scale(self.scale.reciprocal());
         let r_t = ((origin + (self.transform << r.forwards()).scale(self.scale.reciprocal()))
             & origin)
             .assert::<Bivector>();

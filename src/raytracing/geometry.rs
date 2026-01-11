@@ -12,7 +12,10 @@ mod sealed {
 }
 
 pub trait Obj: Sealed {
-    fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>>;
+    fn intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>>;
+    fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
+        self.intersect_from_origin(r, c.location)
+    }
     fn surface_at(&self, p: Trivector) -> Vector;
     fn material(&self) -> &Material;
     fn material_mut(&mut self) -> &mut Material;
@@ -28,6 +31,7 @@ pub enum Object {
 
 impl Sealed for Object {}
 impl Obj for Object {
+    #[inline]
     fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
         use Object::*;
         match self {
@@ -35,6 +39,15 @@ impl Obj for Object {
         }
     }
 
+    #[inline]
+    fn intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>> {
+        use Object::*;
+        match self {
+            Sphere(s) => s.intersect_from_origin(r, p),
+        }
+    }
+
+    #[inline]
     fn surface_at(&self, p: Trivector) -> Vector {
         use Object::*;
         match self {
@@ -42,6 +55,7 @@ impl Obj for Object {
         }
     }
 
+    #[inline]
     fn material(&self) -> &Material {
         use Object::*;
         match self {
@@ -49,6 +63,7 @@ impl Obj for Object {
         }
     }
 
+    #[inline]
     fn material_mut(&mut self) -> &mut Material {
         use Object::*;
         match self {
@@ -56,6 +71,7 @@ impl Obj for Object {
         }
     }
 
+    #[inline]
     fn set_material(&mut self, m: Material) {
         use Object::*;
         match self {
@@ -63,6 +79,7 @@ impl Obj for Object {
         };
     }
 
+    #[inline]
     fn transform_t(&mut self, t: Transformation) {
         use Object::*;
         match self {
@@ -70,6 +87,7 @@ impl Obj for Object {
         };
     }
 
+    #[inline]
     fn transform(&mut self, m: Motor) {
         use Object::*;
         match self {

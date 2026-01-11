@@ -93,14 +93,53 @@ impl World {
     }
 
     #[inline]
+    pub fn intersect_from_origin(&self, r: Ray, origin: Trivector) -> Vec<Intersection<'_>> {
+        self.objects
+            .iter()
+            .map(|o| o.intersect_from_origin(r, origin))
+            .fold(
+                vec![],
+                |mut acc: Vec<Intersection<'_>>, xs: Vec<Intersection<'_>>| {
+                    for x in xs {
+                        acc.insert(acc.partition_point(|xa: &Intersection| xa.t() < x.t()), x);
+                    }
+                    acc
+                },
+            )
+    }
+
+    #[inline]
     pub fn shade_hit(&self, h: &IntersectionState<'_>) -> Color {
         let mut c = BLACK;
         for light in &self.lights {
-            c = c + h
-                .point()
-                .lighting(h.obj().material(), &light, h.eyev(), h.surface());
+            let in_shadow = self.is_shadowed(h.over_point());
+            c = c + h.point().lighting(
+                h.obj().material(),
+                &light,
+                h.eyev(),
+                h.surface(),
+                in_shadow,
+            );
         }
         c
+    }
+
+    #[inline]
+    pub fn is_shadowed(&self, point: Trivector) -> bool {
+        #![allow(irrefutable_let_patterns)]
+        for light in &self.lights {
+            let Light::Point(light) = light else {
+                panic!("Non-point light shadows not implemented");
+            };
+            let shadow_ray = (light.position & point).normalize().assert::<Ray>();
+            let xs = self.intersect_from_origin(shadow_ray, point);
+            if let Some(h) = xs.hit()
+                && h.t() < (light.position - point).magnitude()
+            {
+                return true;
+            }
+        }
+        false
     }
 
     #[inline]
@@ -186,6 +225,25 @@ mod test {
     }
 
     #[test]
+    fn shade_intersection_in_shadow() {
+        let mut w = World::default();
+        w.lights[0] = Light::Point(PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE));
+        w.objects.push(Object::Sphere(Sphere::new()));
+        w.objects.push(Object::Sphere(Sphere::new()));
+        w.objects[3].transform_t(Transformation::trans_coords(0.0, 0.0, 10.0));
+
+        let ray_origin = Trivector::point(0.0, 0.0, 5.0);
+        w.camera.location = ray_origin;
+        let r = Ray::from((ray_origin, Trivector::direction(0.0, 0.0, 1.0)));
+
+        let shape = &w.objects[3];
+        let i = Intersection::new(4.0, shape.into());
+        let comps = i.precompute(&r, &w.camera);
+
+        assert_eq!(w.shade_hit(&comps), Color::new(0.1, 0.1, 0.1));
+    }
+
+    #[test]
     fn color_ray_miss() {
         let w = World::default();
         let r = Ray::from((
@@ -230,5 +288,33 @@ mod test {
             *image.pixel_at(5, 5).unwrap(),
             Color::new(0.38066, 0.47483, 0.2855)
         );
+    }
+
+    #[test]
+    fn shadow_no_object_colinear() {
+        let world = World::default();
+        let point = Trivector::point(0.0, 10.0, 0.0);
+        assert_eq!(world.is_shadowed(point), false);
+    }
+
+    #[test]
+    fn shadow_object_occlude_light() {
+        let world = World::default();
+        let point = Trivector::point(10.0, -10.0, 10.0);
+        assert_eq!(world.is_shadowed(point), true);
+    }
+
+    #[test]
+    fn shadow_object_behind_light() {
+        let world = World::default();
+        let point = Trivector::point(-20.0, 20.0, -20.0);
+        assert_eq!(world.is_shadowed(point), false);
+    }
+
+    #[test]
+    fn shadow_object_behind_point() {
+        let world = World::default();
+        let point = Trivector::point(-2.0, 2.0, -2.0);
+        assert_eq!(world.is_shadowed(point), false);
     }
 }

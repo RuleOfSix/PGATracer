@@ -56,7 +56,14 @@ impl Material {
 }
 
 impl Trivector {
-    pub fn lighting(self, m: &Material, l: &Light, eye: Vector, surface: Vector) -> Color {
+    pub fn lighting(
+        self,
+        m: &Material,
+        l: &Light,
+        eye: Vector,
+        surface: Vector,
+        in_shadow: bool,
+    ) -> Color {
         #[allow(irrefutable_let_patterns)]
         let Light::Point(l) = l else {
             panic!("Non-point lights not implemented.");
@@ -64,6 +71,10 @@ impl Trivector {
         let color = m.color * l.intensity;
         let lightv = (l.position - self).normalize();
         let ambient = color * m.ambient;
+
+        if in_shadow {
+            return ambient;
+        }
 
         let cos_light_normal = (lightv.dual().assert::<Vector>() | surface).assert::<Scalar>();
 
@@ -118,7 +129,7 @@ mod test {
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &Light::Point(light), eye, surface),
+            pos.lighting(&m, &Light::Point(light), eye, surface, false),
             Color::new(1.9, 1.9, 1.9)
         );
     }
@@ -136,7 +147,8 @@ mod test {
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
-                surface
+                surface,
+                false
             ),
             WHITE
         );
@@ -153,7 +165,7 @@ mod test {
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 10.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &Light::Point(light), eye, surface),
+            pos.lighting(&m, &Light::Point(light), eye, surface, false),
             Color::new(0.7364, 0.7364, 0.7364)
         );
     }
@@ -171,7 +183,8 @@ mod test {
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
-                surface
+                surface,
+                false
             ),
             Color::new(1.6364, 1.6364, 1.6364)
         );
@@ -191,9 +204,30 @@ mod test {
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
-                surface
+                surface,
+                false
             ),
             Color::new(0.1, 0.1, 0.1)
         );
+    }
+
+    #[test]
+    fn lighting_in_shadow() {
+        let m = Material::new();
+        let pos = e123;
+
+        let eye = Trivector::direction(0.0, 0.0, -1.0);
+        let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
+        let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
+        let in_shadow = true;
+
+        let result = pos.lighting(
+            &m,
+            &Light::Point(light),
+            eye.dual().assert::<Vector>(),
+            surface,
+            in_shadow,
+        );
+        assert_eq!(result, Color::new(0.1, 0.1, 0.1));
     }
 }

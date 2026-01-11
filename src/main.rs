@@ -12,8 +12,8 @@ fn main() {
         cam_loc,
         (cam_target - cam_loc).normalize(),
         -e013,
+        2000,
         1000,
-        500,
         PI / 3.0,
     );
 
