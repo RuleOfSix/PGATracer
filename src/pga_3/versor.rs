@@ -7,6 +7,8 @@ use std::simd::{LaneCount, SupportedLaneCount};
 mod motor;
 mod odd_versor;
 
+const VERSOR_ZERO_EPSILON: f32 = 0.001;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Versor {
     Even(Motor),
@@ -15,8 +17,9 @@ pub enum Versor {
 }
 
 fn is_zero(slice: &[f32]) -> bool {
-    use crate::util::float_eq;
-    slice.iter().fold(true, |acc, f| acc && float_eq(*f, 0.0))
+    slice
+        .iter()
+        .fold(true, |acc, f| acc && f.abs() < VERSOR_ZERO_EPSILON)
 }
 
 impl From<AnyKVector> for Versor {
