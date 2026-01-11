@@ -112,7 +112,7 @@ impl World {
     pub fn shade_hit(&self, h: &IntersectionState<'_>) -> Color {
         let mut c = BLACK;
         for light in &self.lights {
-            let in_shadow = self.is_shadowed(h.over_point());
+            let in_shadow = self.is_shadowed(h.over_point(), light);
             c = c + h.point().lighting(
                 h.obj().material(),
                 &light,
@@ -125,19 +125,17 @@ impl World {
     }
 
     #[inline]
-    pub fn is_shadowed(&self, point: Trivector) -> bool {
+    pub fn is_shadowed(&self, point: Trivector, light: &Light) -> bool {
         #![allow(irrefutable_let_patterns)]
-        for light in &self.lights {
-            let Light::Point(light) = light else {
-                panic!("Non-point light shadows not implemented");
-            };
-            let shadow_ray = (light.position & point).normalize().assert::<Ray>();
-            let xs = self.intersect_from_origin(shadow_ray, point);
-            if let Some(h) = xs.hit()
-                && h.t() < (light.position - point).magnitude()
-            {
-                return true;
-            }
+        let Light::Point(light) = light else {
+            panic!("Non-point light shadows not implemented");
+        };
+        let shadow_ray = (light.position & point).normalize().assert::<Ray>();
+        let xs = self.intersect_from_origin(shadow_ray, point);
+        if let Some(h) = xs.hit()
+            && h.t() < (light.position - point).magnitude()
+        {
+            return true;
         }
         false
     }
@@ -294,27 +292,27 @@ mod test {
     fn shadow_no_object_colinear() {
         let world = World::default();
         let point = Trivector::point(0.0, 10.0, 0.0);
-        assert_eq!(world.is_shadowed(point), false);
+        assert_eq!(world.is_shadowed(point, &world.lights[0]), false);
     }
 
     #[test]
     fn shadow_object_occlude_light() {
         let world = World::default();
         let point = Trivector::point(10.0, -10.0, 10.0);
-        assert_eq!(world.is_shadowed(point), true);
+        assert_eq!(world.is_shadowed(point, &world.lights[0]), true);
     }
 
     #[test]
     fn shadow_object_behind_light() {
         let world = World::default();
         let point = Trivector::point(-20.0, 20.0, -20.0);
-        assert_eq!(world.is_shadowed(point), false);
+        assert_eq!(world.is_shadowed(point, &world.lights[0]), false);
     }
 
     #[test]
     fn shadow_object_behind_point() {
         let world = World::default();
         let point = Trivector::point(-2.0, 2.0, -2.0);
-        assert_eq!(world.is_shadowed(point), false);
+        assert_eq!(world.is_shadowed(point, &world.lights[0]), false);
     }
 }
