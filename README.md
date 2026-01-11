@@ -1,6 +1,6 @@
 # A CPU Raytracer using Projective Geometric Algebra (PGA)
 
-![An example render using PGATracer](./example.png "An example render using PGATracer")
+![An example render using PGATracer](example.png "An example render using PGATracer")
 
 I have two main goals with this project:
 - To learn about 3D PGA and its graphical use cases
