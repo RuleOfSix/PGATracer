@@ -42,7 +42,8 @@ impl Intersection<'_> {
 
     #[inline]
     pub fn precompute(&self, r: &Ray, c: &Camera) -> IntersectionState<'_> {
-        use crate::util::EPSILON;
+        const OVER_ADJUSTMENT: f32 = 10.0 * crate::util::EPSILON;
+
         let point = r.position(self.t, c).normalize();
         let eyev = r.forwards().undual().assert::<Vector>().normalize();
         let surface = self.obj.surface_at(point);
@@ -52,7 +53,7 @@ impl Intersection<'_> {
             t: self.t,
             obj: self.obj,
             point: point,
-            over_point: point - surface.dual().assert::<Trivector>() * EPSILON,
+            over_point: point - surface.dual().assert::<Trivector>() * OVER_ADJUSTMENT,
             eyev: eyev,
             surface: surface,
             inside: inside,
@@ -212,7 +213,7 @@ mod test {
         let shape = Object::Sphere(shape);
         let i = Intersection::new(5.0, (&shape).into());
         let comps = i.precompute(&r, &c);
-        assert!(comps.over_point.z() < -EPSILON / 2.0);
+        assert!(comps.over_point.z() < -EPSILON * 5.0);
         assert!(comps.point.z() > comps.over_point.z());
     }
 }

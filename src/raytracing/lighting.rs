@@ -69,7 +69,9 @@ impl Trivector {
             panic!("Non-point lights not implemented.");
         };
         let color = m.color * l.intensity;
-        let lightv = (l.position - self).normalize();
+        let mut lightv = l.position - self;
+        lightv[0] = 0.0;
+        lightv = lightv.normalize();
         let ambient = color * m.ambient;
 
         if in_shadow {
@@ -83,7 +85,7 @@ impl Trivector {
         }
 
         let diffuse = color * m.diffuse * cos_light_normal;
-        let reflectv = (-lightv).reflect(surface).dual().assert::<Vector>();
+        let reflectv = -lightv.reflect(surface).dual().assert::<Vector>();
         let cos_reflect_eye = (eye | reflectv).assert::<Scalar>();
 
         if cos_reflect_eye <= 0.0 {
