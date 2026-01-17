@@ -185,7 +185,7 @@ impl World {
 
     fn render_samples_at(&self, x: f32, y: f32, scale: f32, previous: PixelSection) -> Vec<Sample> {
         const COLOR_THRESHOLD: f32 = 0.01;
-        const MAX_DEPTH: i32 = 7;
+        const MAX_DEPTH: i32 = 4;
         let samples: Vec<Sample> = self
             .camera
             .rays_for_pixel(x, y, scale, previous)

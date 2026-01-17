@@ -70,13 +70,17 @@ fn main() {
     let light1_loc = Trivector::point(-10.0, 10.0, -10.0);
     let light = Light::Point(PointLight::new(light1_loc, Color::new(0.1, 0.5, 0.1)));
 
-    let light2_loc = Motor::from(Transformation::rotation(e31, PI / 2.2)) >> light1_loc;
+    let light2_loc = Motor::from(Transformation::rotation(e31, PI / 2.0)) >> light1_loc;
     let light2 = Light::Point(PointLight::new(light2_loc, Color::new(0.1, 0.1, 0.5)));
+
+    let light3_loc = Motor::from(Transformation::rotation(e31, PI / 4.0))
+        >> (Motor::from(Transformation::rotation(e12, PI / 4.0)) >> light1_loc);
+    let light3 = Light::Point(PointLight::new(light3_loc, Color::new(0.5, 0.1, 0.1)));
 
     let mut world = World::new();
     world.camera = camera;
     world.objects = vec![floor, left_wall, right_wall, left, middle, right];
-    world.lights = vec![light, light2];
+    world.lights = vec![light, light2, light3];
 
     world.render().write_file("img.ppm").unwrap();
 }
