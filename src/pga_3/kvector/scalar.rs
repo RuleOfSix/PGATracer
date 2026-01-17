@@ -100,7 +100,7 @@ impl Multivector for Scalar {
 
     #[inline]
     fn dual(self) -> Versor {
-        Versor::from(Pseudoscalar(self))
+        Versor::KVec(AnyKVector::Four(Pseudoscalar(self)))
     }
 
     #[inline]

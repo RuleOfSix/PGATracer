@@ -1,5 +1,53 @@
 use crate::raytracing::*;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PixelSection {
+    Center,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl PixelSection {
+    #[inline]
+    pub const fn from_index(index: usize) -> Self {
+        use PixelSection::*;
+        match index {
+            0 => Center,
+            1 => TopLeft,
+            2 => TopRight,
+            3 => BottomLeft,
+            4 => BottomRight,
+            _ => panic!("Invalid sample index"),
+        }
+    }
+
+    #[inline]
+    pub const fn x(&self) -> f32 {
+        use PixelSection::*;
+        match self {
+            Center => 0.0,
+            TopLeft => 0.5,
+            TopRight => -0.5,
+            BottomLeft => 0.5,
+            BottomRight => -0.5,
+        }
+    }
+
+    #[inline]
+    pub const fn y(&self) -> f32 {
+        use PixelSection::*;
+        match self {
+            Center => 0.0,
+            TopLeft => 0.5,
+            TopRight => 0.5,
+            BottomLeft => -0.5,
+            BottomRight => -0.5,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Camera {
     pub location: Trivector,
@@ -115,6 +163,49 @@ impl Camera {
         let y_translation = Motor::from(Transformation::translation(y_offset * self.up));
         let p = x_translation >> (y_translation >> (self.forward_m >> self.location));
         Ray::from((p, p - self.location))
+    }
+
+    #[inline]
+    // If the scale isn't 1.0, then we've zoomed in and there'll be redundant rays that don't need
+    // to be calculated based on where the sample we've "zoomed into" was. These are:
+    //      - Center: don't need the new center pixel
+    //      - Top-Left: Don't need top-left or bottom-right (ie only positive diagonal)
+    //      - Top-Right: Don't need top-right or bottom-left (ie only negative diagonal)
+    //      - Bottom-Left: Don't need bottom-left or top-right (ie only negative diagonal)
+    //      - Bottom-Right: Don't need bottom-right or top-left (ie only positive diagonal)
+    pub fn rays_for_pixel(&self, x: f32, y: f32, scale: f32, previous: PixelSection) -> Vec<Ray> {
+        let center_x_offset = (x + 0.5 * scale) * self.pixel_size - self.half_width;
+        let center_y_offset = self.half_height - (y + 0.5 * scale) * self.pixel_size;
+        let half_pixel_offset = 0.5 * scale * self.pixel_size;
+        let x_half_pixel = half_pixel_offset * self.left;
+        let y_half_pixel = half_pixel_offset * self.up;
+
+        let center_x_translation =
+            Motor::from(Transformation::translation(center_x_offset * self.left));
+        let center_y_translation =
+            Motor::from(Transformation::translation(center_y_offset * self.up));
+
+        let mut rays: Vec<Ray> = vec![];
+
+        let center_p =
+            center_x_translation >> (center_y_translation >> (self.forward_m >> self.location));
+
+        if previous != PixelSection::Center || scale == 1.0 {
+            rays.push((center_p & self.location).assert::<Bivector>());
+        }
+        if previous != PixelSection::TopLeft && previous != PixelSection::BottomRight {
+            let top_left = center_p + x_half_pixel + y_half_pixel;
+            rays.push((top_left & self.location).assert::<Bivector>());
+            let bottom_right = center_p - x_half_pixel - y_half_pixel;
+            rays.push((bottom_right & self.location).assert::<Bivector>());
+        }
+        if previous != PixelSection::TopRight && previous != PixelSection::BottomLeft {
+            let top_right = center_p - x_half_pixel + y_half_pixel;
+            rays.push((top_right & self.location).assert::<Bivector>());
+            let bottom_left = center_p + x_half_pixel - y_half_pixel;
+            rays.push((bottom_left & self.location).assert::<Bivector>());
+        }
+        rays
     }
 }
 

@@ -7,7 +7,7 @@ use std::simd::{LaneCount, SupportedLaneCount};
 mod motor;
 mod odd_versor;
 
-const VERSOR_ZERO_EPSILON: f32 = 0.001;
+const VERSOR_ZERO_EPSILON: f32 = crate::util::EPSILON * 10.0;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Versor {
@@ -17,9 +17,13 @@ pub enum Versor {
 }
 
 fn is_zero(slice: &[f32]) -> bool {
-    slice
-        .iter()
-        .fold(true, |acc, f| acc && f.abs() < VERSOR_ZERO_EPSILON)
+    slice.iter().fold(true, |acc, f| acc && *f == 0.0)
+}
+
+fn is_zero_rounding(slice: &[f32]) -> bool {
+    slice.iter().fold(true, |acc, f| {
+        acc && f.abs() < VERSOR_ZERO_EPSILON || f.is_nan() || f.is_infinite()
+    })
 }
 
 impl From<AnyKVector> for Versor {
@@ -271,6 +275,78 @@ impl Versor {
             Even(_) => panic!("Assert failed: motor not kvector"),
             Odd(_) => panic!("Assert failed: oddvector not kvector"),
             KVec(kv) => kv.assert::<T>(),
+        }
+    }
+
+    pub fn snap(self) -> Self {
+        use Versor::*;
+        match self {
+            Even(m) => Self::from_motor_rounding(m),
+            Odd(ov) => Self::from_oddversor_rounding(ov),
+            KVec(_) => self, /*
+                             match kv {
+                             Zero(s) => {
+                                 if s.abs() < VERSOR_ZERO_EPSILON {
+                                     Self::from(0.0)
+                                 } else {
+                                     self
+                                 }
+                             }
+                             One(v) => {
+                                 if is_zero_rounding(&v[0..4]) {
+                                     Self::from(Vector::from([0.0; 4]))
+                                 } else {
+                                     self
+                                 }
+                             }
+                             Two(bv) => {
+                                 if is_zero_rounding(&bv[0..6]) {
+                                     Self::from(Bivector::from([0.0; 6]))
+                                 } else {
+                                     self
+                                 }
+                             }
+                             Three(tv) => {
+                                 if is_zero_rounding(&tv[0..4]) {
+                                     KVec(Three(Trivector::from([0.0; 4])))
+                                 } else {
+                                     self
+                                 }
+                             }
+                             Four(ps) => {
+                                 if ps.0.abs() < VERSOR_ZERO_EPSILON {
+                                     Self::from(Pseudoscalar(0.0))
+                                 } else {
+                                     self
+                                 }
+                             }
+                             */
+        }
+    }
+
+    pub fn from_motor_rounding(m: Motor) -> Self {
+        use AnyKVector::*;
+        use Versor::*;
+        if is_zero_rounding(&m[1..8]) {
+            KVec(Zero(m[0]))
+        } else if is_zero_rounding(&m[0..7]) {
+            KVec(Four(Pseudoscalar(m[7])))
+        } else if is_zero_rounding(&[m[0], m[7]]) {
+            KVec(Two(Bivector::from([m[1], m[2], m[3], m[4], m[5], m[6]])))
+        } else {
+            Versor::Even(m)
+        }
+    }
+
+    pub fn from_oddversor_rounding(ov: OddVersor) -> Self {
+        use AnyKVector::*;
+        use Versor::*;
+        if is_zero_rounding(&ov[0..4]) {
+            KVec(Three(Trivector::from([ov[4], ov[5], ov[6], ov[7]])))
+        } else if is_zero_rounding(&ov[4..8]) {
+            KVec(One(Vector::from([ov[0], ov[1], ov[2], ov[3]])))
+        } else {
+            Versor::Odd(ov)
         }
     }
 }

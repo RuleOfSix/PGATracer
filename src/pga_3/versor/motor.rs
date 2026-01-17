@@ -109,12 +109,9 @@ impl From<Transformation> for Motor {
         match t {
             Rotation { axis, angle } => axis.mul(-angle / 2.0).exp(),
             Translation { direction } => {
-                let bv = match -(e0 * direction.dual()) / 2.0 {
-                    KVec(Two(bv)) => bv,
-                    KVec(Zero(0.0)) => Bivector::from([0.0; 6]),
-                    _ => panic!("Line at infinity should be a line"),
-                };
-                Self::from((1.0, bv, Pseudoscalar(0.0)))
+                let dir_dual = direction.dual().assert::<Vector>();
+                let bv = Bivector::from([0.0, 0.0, 0.0, dir_dual[0], dir_dual[1], dir_dual[2]]);
+                Self::from((1.0, -bv / 2.0, Pseudoscalar(0.0)))
             }
             Screw {
                 axis,
@@ -376,14 +373,14 @@ impl Multivector for Motor {
 
 impl Motor {
     pub fn sandwich<T: SingleGrade + NonScalar + 'static>(self, rhs: T) -> T {
-        match self.reverse() * rhs * self {
+        match (self.reverse() * rhs * self).snap() {
             Versor::KVec(kv) => kv.assert::<T>(),
             _ => panic!("Sandwich of k-vector should be a k-vector"),
         }
     }
 
     pub fn reverse_sandwich<T: SingleGrade + NonScalar + 'static>(self, rhs: T) -> T {
-        match self * rhs * self.reverse() {
+        match (self * rhs * self.reverse()).snap() {
             Versor::KVec(kv) => kv.assert::<T>(),
             _ => panic!("Reverse-sandwich of k-vector should be a k-vector"),
         }
@@ -458,9 +455,11 @@ mod test {
         let z_axis = Bivector::from([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         let s = Transformation::screw(z_axis, PI / 4.0, 5.0);
         let result = (Motor::from(s) >> x_axis).normalize();
-        let Versor::KVec(AnyKVector::Three(p1)) =
-            (Trivector::from([1.0, 0.0, 0.0, 0.0]) | result) * result
-        else {
+        let Versor::KVec(AnyKVector::Three(p1)) = dbg!(
+            (Trivector::from([1.0, 0.0, 0.0, 0.0]) | result)
+                .geo(result)
+                .snap()
+        ) else {
             panic!("Point projected onto line should be a point");
         };
         let p2 = p1 + {
