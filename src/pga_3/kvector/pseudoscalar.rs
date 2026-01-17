@@ -107,7 +107,7 @@ impl Multivector for Pseudoscalar {
 
     #[inline]
     fn dual(self) -> Versor {
-        self.0.into()
+        Versor::KVec(AnyKVector::Zero(self.0))
     }
 
     #[inline]

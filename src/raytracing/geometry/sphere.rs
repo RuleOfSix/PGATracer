@@ -28,15 +28,18 @@ impl Obj for Sphere {
             return vec![];
         }
 
-        let p1 = r_t ^ (ov.grade(1).assert::<Vector>() + e0 * f32::sqrt(d_squared));
-        let p2 = r_t ^ (ov.grade(1).assert::<Vector>() - e0 * f32::sqrt(d_squared));
-
-        let t1 = r_t.when(p1.assert::<Trivector>().normalize(), origin);
-        let t2 = r_t.when(p2.assert::<Trivector>().normalize(), origin);
+        let v1 = origin & (ov.grade(1).assert::<Vector>() + e0 * f32::sqrt(d_squared));
+        let v2 = origin & (ov.grade(1).assert::<Vector>() - e0 * f32::sqrt(d_squared));
 
         intersections![
-            new(t2.expect("t2 should exist"), ObjectRef::Sphere(&self)),
-            new(t1.expect("t1 should exist"), ObjectRef::Sphere(&self))
+            new(
+                v1.assert::<Scalar>() / r_t.magnitude(),
+                ObjectRef::Sphere(&self)
+            ),
+            new(
+                v2.assert::<Scalar>() / r_t.magnitude(),
+                ObjectRef::Sphere(&self)
+            )
         ]
     }
 

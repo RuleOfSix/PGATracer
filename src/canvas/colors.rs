@@ -1,5 +1,5 @@
 use std::cmp::PartialEq;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 pub const BLACK: Color = Color::new(0.0, 0.0, 0.0);
 pub const WHITE: Color = Color::new(1.0, 1.0, 1.0);
@@ -56,6 +56,18 @@ impl Mul<f32> for Color {
     }
 }
 
+impl Div<f32> for Color {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Color {
+            red: self.red / rhs,
+            green: self.green / rhs,
+            blue: self.blue / rhs,
+        }
+    }
+}
+
 impl Mul for Color {
     type Output = Self;
 
@@ -69,8 +81,15 @@ impl Mul for Color {
 }
 
 impl Color {
+    #[inline]
     pub const fn new(red: f32, green: f32, blue: f32) -> Self {
         Color { red, green, blue }
+    }
+
+    pub fn similar_to(&self, other: Self, difference_threshold: f32) -> bool {
+        f32::abs(self.red - other.red) < difference_threshold
+            && f32::abs(self.green - other.green) < difference_threshold
+            && f32::abs(self.blue - other.blue) < difference_threshold
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::pga_3::*;
+use crate::util::float_eq;
 pub use camera::*;
 pub use geometry::*;
 
@@ -32,15 +33,14 @@ impl Ray {
 
     #[inline]
     pub fn when(&self, p: Trivector, origin: Trivector) -> Option<f32> {
-        let denom = self
-            .forwards()
-            .undual()
-            .inverse()
-            .expect("Inverse of dual of ideal point should exist");
-        match (p - origin).undual() * denom {
-            Versor::KVec(AnyKVector::Zero(s)) => Some(s),
-            _ => None,
+        // This implementation assumes the given point lies on the plane,
+        // and will give nonsensical results otherwise
+        for (i, f) in self.forwards()[1..4].iter().enumerate() {
+            if !float_eq(*f, 0.0) {
+                return Some((p - origin)[i + 1] / f);
+            }
         }
+        return None;
     }
 }
 

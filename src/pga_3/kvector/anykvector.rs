@@ -218,26 +218,23 @@ impl Multivector for AnyKVector {
     #[inline]
     fn dual(self) -> Versor {
         match self {
-            Zero(s) => {
-                if s != 0.0 {
-                    Pseudoscalar(s).into()
-                } else {
-                    self.into()
-                }
-            }
-            One(v) => v.dual().into(),
-            Two(bv) => bv.dual().into(),
-            Three(tv) => tv.dual().into(),
-            Four(ps) => Zero(ps.0).into(),
+            Zero(s) => match s {
+                0.0 => Versor::KVec(Zero(0.0)),
+                s => Versor::KVec(Four(Pseudoscalar(s))),
+            },
+            One(v) => v.dual(),
+            Two(bv) => bv.dual(),
+            Three(tv) => tv.dual(),
+            Four(ps) => ps.dual(),
         }
     }
 
     #[inline]
     fn undual(self) -> Versor {
         match self {
-            One(v) => v.undual().into(),
-            Three(tv) => tv.undual().into(),
-            _ => self.dual().into(),
+            One(v) => v.undual(),
+            Three(tv) => tv.undual(),
+            _ => self.dual(),
         }
     }
 

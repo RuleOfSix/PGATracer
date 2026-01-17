@@ -58,6 +58,14 @@ impl Trivector {
     }
 
     #[inline]
+    pub fn difference(self, other: Self) -> Self {
+        let mut res = self - other;
+        if res[0].abs() < crate::util::EPSILON {
+            res[0] = 0.0;
+        }
+        res
+    }
+    #[inline]
     pub fn x(&self) -> f32 {
         -self[1] / self[0]
     }

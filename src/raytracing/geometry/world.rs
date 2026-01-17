@@ -8,6 +8,13 @@ mod sealed {
     pub trait Sealed {}
 }
 
+#[derive(Debug, Clone)]
+struct Sample {
+    color: Color,
+    section: PixelSection,
+    scale: f32,
+}
+
 pub struct World {
     pub objects: Vec<Object>,
     pub lights: Vec<Light>,
@@ -158,6 +165,80 @@ impl World {
             *c = self.color_at(r);
         }
         img
+    }
+
+    #[inline]
+    pub fn render_anti_alias(&self) -> Canvas {
+        let mut img = Canvas::new(self.camera.hsize, self.camera.vsize);
+        for (x, y, c) in img.enumerate_mut() {
+            let samples = self.render_samples_at(x as f32, y as f32, 1.0, PixelSection::Center);
+            let weighted_color_sum = samples
+                .iter()
+                .fold(BLACK, |acc, s| acc + s.color * s.scale.powi(2) * 0.2);
+            let correction_factor = samples
+                .iter()
+                .fold(0.0, |acc, s| acc + s.scale.powi(2) * 0.2);
+            *c = weighted_color_sum / correction_factor
+        }
+        img
+    }
+
+    fn render_samples_at(&self, x: f32, y: f32, scale: f32, previous: PixelSection) -> Vec<Sample> {
+        const COLOR_THRESHOLD: f32 = 0.01;
+        const MAX_DEPTH: i32 = 7;
+        let samples: Vec<Sample> = self
+            .camera
+            .rays_for_pixel(x, y, scale, previous)
+            .iter()
+            .enumerate()
+            .map(|(i, r)| Sample {
+                color: self.color_at(*r),
+                section: PixelSection::from_index(i),
+                scale: scale,
+            })
+            .collect();
+        let mut similar_samples: Vec<Vec<&Sample>> = vec![vec![&samples[0]]];
+        'outer: for sample in &samples {
+            for sample_class in &mut similar_samples {
+                if sample
+                    .color
+                    .similar_to(sample_class[0].color, COLOR_THRESHOLD)
+                {
+                    sample_class.push(sample);
+                    continue 'outer;
+                }
+            }
+            similar_samples.push(vec![sample]);
+        }
+        similar_samples.sort_unstable_by_key(|samples| samples.len());
+        similar_samples
+            .into_iter()
+            .rev()
+            .enumerate()
+            .map(|(i, samples)| {
+                if i == 0 || scale <= 1.0 / (2.0_f32.powi(MAX_DEPTH)) {
+                    return samples
+                        .into_iter()
+                        .map(|s| s.clone())
+                        .collect::<Vec<Sample>>();
+                };
+                samples
+                    .iter()
+                    .flat_map(|s| {
+                        let new_scale = scale / 2.0;
+                        let mut res = self.render_samples_at(
+                            x + s.section.x() * new_scale,
+                            y + s.section.y() * new_scale,
+                            new_scale,
+                            s.section,
+                        );
+                        res.push((*s).clone());
+                        res
+                    })
+                    .collect()
+            })
+            .flatten()
+            .collect()
     }
 }
 

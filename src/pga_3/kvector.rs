@@ -283,14 +283,17 @@ where
     #[inline]
     fn dual(self) -> Versor {
         match K {
-            1 => Versor::from(Trivector::from(simd_swizzle!(
+            1 => Versor::KVec(AnyKVector::Three(Trivector::from(simd_swizzle!(
                 self.components,
                 [3, 0, 1, 2]
-            ))),
-            2 => Versor::from(Bivector::from([
+            )))),
+            2 => Versor::KVec(AnyKVector::Two(Bivector::from([
                 self[5], self[4], self[3], self[2], self[1], self[0],
-            ])),
-            3 => Versor::from(Vector::from(-simd_swizzle!(self.components, [1, 2, 3, 0]))),
+            ]))),
+            3 => Versor::KVec(AnyKVector::One(Vector::from(-simd_swizzle!(
+                self.components,
+                [1, 2, 3, 0]
+            )))),
             _ => Versor::from(0.0),
         }
     }
@@ -436,7 +439,7 @@ where
     fn inverse(self) -> Option<Self> {
         match K {
             1 | 3 => {
-                if !float_eq(self.e(0b1111), 0.0) || self.is_ideal() {
+                if self.is_ideal() {
                     return None;
                 }
                 Some(self.reverse() / self.magnitude().powi(2))
@@ -1269,8 +1272,14 @@ mod tests {
     fn bivector_times_inverse_1() {
         let bv1 = Bivector::from([-5.0, 10.0, -5.0, 15.0, 10.0, 5.0]);
         let bv2 = Bivector::from([-5.0, 10.0, -5.0, 13.0, 10.0, 5.0]);
-        assert_eq!(bv1 * bv1.inverse().unwrap(), Versor::KVec(1.0.into()));
-        assert_eq!(bv2 * bv2.inverse().unwrap(), Versor::KVec(1.0.into()));
+        assert_eq!(
+            bv1.geo(bv1.inverse().unwrap()).snap(),
+            Versor::KVec(1.0.into())
+        );
+        assert_eq!(
+            bv2.geo(bv2.inverse().unwrap()).snap(),
+            Versor::KVec(1.0.into())
+        );
     }
 
     #[test]
