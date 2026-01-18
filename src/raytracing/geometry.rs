@@ -12,16 +12,38 @@ mod sealed {
 }
 
 pub trait Obj: Sealed {
-    fn intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>>;
+    fn local_intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>>;
     fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
         self.intersect_from_origin(r, c.location)
     }
-    fn surface_at(&self, p: Trivector) -> Vector;
+    fn intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>> {
+        let origin = (self.get_transform() << p).scale(self.get_scale().reciprocal());
+        let r_t = ((origin
+            + (self.get_transform() << r.forwards()).scale(self.get_scale().reciprocal()))
+            & origin)
+            .assert::<Bivector>();
+        self.local_intersect_from_origin(r_t, origin)
+    }
+    fn local_surface_at(&self, p: Trivector) -> Vector;
+    fn surface_at(&self, p: Trivector) -> Vector {
+        let p = (self.get_transform() << p).scale(self.get_scale().reciprocal()) - e123;
+        let mut n = self.get_transform()
+            >> self
+                .local_surface_at(p)
+                .scale(self.get_scale())
+                .scale_slope(self.get_scale().reciprocal());
+        n[3] = 0.0;
+        n.normalize()
+    }
     fn material(&self) -> &Material;
     fn material_mut(&mut self) -> &mut Material;
     fn set_material(&mut self, m: Material);
     fn transform_t(&mut self, t: Transformation);
     fn transform(&mut self, m: Motor);
+    fn get_transform(&self) -> Motor;
+    fn get_scale(&self) -> Trivector;
+    fn set_scale(&mut self, new_scale: Trivector);
+    fn scale(&mut self, scale: Trivector);
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,26 +54,18 @@ pub enum Object {
 impl Sealed for Object {}
 impl Obj for Object {
     #[inline]
-    fn intersect(&self, r: Ray, c: &Camera) -> Vec<Intersection<'_>> {
+    fn local_intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>> {
         use Object::*;
         match self {
-            Sphere(s) => s.intersect(r, c),
+            Sphere(s) => s.local_intersect_from_origin(r, p),
         }
     }
 
     #[inline]
-    fn intersect_from_origin(&self, r: Ray, p: Trivector) -> Vec<Intersection<'_>> {
+    fn local_surface_at(&self, p: Trivector) -> Vector {
         use Object::*;
         match self {
-            Sphere(s) => s.intersect_from_origin(r, p),
-        }
-    }
-
-    #[inline]
-    fn surface_at(&self, p: Trivector) -> Vector {
-        use Object::*;
-        match self {
-            Sphere(s) => s.surface_at(p),
+            Sphere(s) => s.local_surface_at(p),
         }
     }
 
@@ -92,6 +106,38 @@ impl Obj for Object {
         use Object::*;
         match self {
             Sphere(s) => s.transform(m),
+        }
+    }
+
+    #[inline]
+    fn get_transform(&self) -> Motor {
+        use Object::*;
+        match self {
+            Sphere(s) => s.transform,
+        }
+    }
+
+    #[inline]
+    fn get_scale(&self) -> Trivector {
+        use Object::*;
+        match self {
+            Sphere(s) => s.scale,
+        }
+    }
+
+    #[inline]
+    fn set_scale(&mut self, scale: Trivector) {
+        use Object::*;
+        match self {
+            Sphere(s) => s.set_scale(scale),
+        }
+    }
+
+    #[inline]
+    fn scale(&mut self, scale: Trivector) {
+        use Object::*;
+        match self {
+            Sphere(s) => s.scale(scale),
         }
     }
 }

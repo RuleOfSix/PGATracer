@@ -14,13 +14,8 @@ pub struct Sphere {
 
 impl Sealed for Sphere {}
 impl Obj for Sphere {
-    fn intersect_from_origin(&self, r: Ray, origin: Trivector) -> Vec<Intersection<'_>> {
-        let origin = (self.transform << origin).scale(self.scale.reciprocal());
-        let r_t = ((origin + (self.transform << r.forwards()).scale(self.scale.reciprocal()))
-            & origin)
-            .assert::<Bivector>();
-
-        let ov = r_t.normalize() * e123;
+    fn local_intersect_from_origin(&self, r: Ray, origin: Trivector) -> Vec<Intersection<'_>> {
+        let ov = r.normalize() * e123;
 
         let d_squared = 1.0 - ov.grade(3).dual().magnitude().powi(2);
 
@@ -33,25 +28,19 @@ impl Obj for Sphere {
 
         intersections![
             new(
-                v1.assert::<Scalar>() / r_t.magnitude(),
+                v1.assert::<Scalar>() / r.magnitude(),
                 ObjectRef::Sphere(&self)
             ),
             new(
-                v2.assert::<Scalar>() / r_t.magnitude(),
+                v2.assert::<Scalar>() / r.magnitude(),
                 ObjectRef::Sphere(&self)
             )
         ]
     }
 
     #[inline]
-    fn surface_at(&self, p: Trivector) -> Vector {
-        let p = (self.transform << p).scale(self.scale.reciprocal()) - e123;
-        let mut s = self.transform
-            >> Vector::from([-p[1], -p[2], -p[3], 0.0])
-                .scale(self.scale)
-                .scale_slope(self.scale.reciprocal());
-        s[3] = 0.0;
-        s.normalize()
+    fn local_surface_at(&self, p: Trivector) -> Vector {
+        Vector::from([-p[1], -p[2], -p[3], 0.0])
     }
 
     #[inline]
@@ -84,6 +73,26 @@ impl Obj for Sphere {
     fn transform_t(&mut self, t: Transformation) {
         let m = Motor::from(t);
         self.transform(m);
+    }
+
+    #[inline]
+    fn get_transform(&self) -> Motor {
+        self.transform
+    }
+
+    #[inline]
+    fn get_scale(&self) -> Trivector {
+        self.scale
+    }
+
+    #[inline]
+    fn set_scale(&mut self, new_scale: Trivector) {
+        self.scale = new_scale;
+    }
+
+    #[inline]
+    fn scale(&mut self, scale: Trivector) {
+        self.scale.scale(scale);
     }
 }
 

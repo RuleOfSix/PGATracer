@@ -514,8 +514,6 @@ where
 
     #[inline]
     fn scale(self, scale: Trivector) -> Self {
-        #[allow(bad_style)]
-        // type f32x6 = Simd<f32, 6>;
         match K {
             1 => {
                 let mut res = self;
@@ -530,30 +528,6 @@ where
                     .scale(scale);
                 let forwards = Trivector::from([0.0, -self[2], -self[1], -self[0]]);
                 ((origin + forwards.scale(scale)) & origin).assert::<Self>()
-
-                /*
-                let offset = e123 - ((e123 | self) * self).assert::<Trivector>().normalize();
-                let t = Transformation::translation(Trivector::from(
-                    offset.components - offset.components * scale.components,
-                ));
-                let mut res = Motor::from(t) >> self;
-                res.components = res.components
-                    * f32x6::from([scale[3], scale[2], scale[1], 1.0, 1.0, 1.0]).extract::<0, N>();
-                if !self.is_ideal() {
-                    let scaling_factor = res.eucl_norm() / self.eucl_norm();
-                    res.components = res.components
-                        * f32x6::from([
-                            1.0,
-                            1.0,
-                            1.0,
-                            scaling_factor,
-                            scaling_factor,
-                            scaling_factor,
-                        ])
-                        .extract::<0, N>();
-                }
-                res
-                */
             }
             3 => {
                 let new = self.components.extract::<0, 4>() * scale.components;
