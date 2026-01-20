@@ -21,29 +21,6 @@ fn main() {
     room_material.color = Color::new(1.0, 0.9, 0.9);
     room_material.specular = 0.0;
 
-    let mut floor_s = Sphere::new();
-    floor_s.scale = Trivector::scale(10.0, 0.01, 10.0);
-    floor_s.material = room_material.clone();
-    let floor = Object::Sphere(floor_s);
-
-    let mut left_wall = Sphere::new();
-    left_wall.scale = Trivector::scale(10.0, 0.01, 10.0);
-    left_wall.material = room_material.clone();
-    left_wall.transform_t(Transformation::rotation(e12, PI / 2.0));
-    left_wall.transform_t(Transformation::rotation(e31, PI / -4.0));
-    left_wall.transform_t(Transformation::trans_coords(0.0, 0.0, 5.0));
-    left_wall.normalize();
-    let left_wall = Object::Sphere(left_wall);
-
-    let mut right_wall = Sphere::new();
-    right_wall.scale = Trivector::scale(10.0, 0.01, 10.0);
-    right_wall.material = room_material.clone();
-    right_wall.transform_t(Transformation::rotation(e12, PI / 2.0));
-    right_wall.transform_t(Transformation::rotation(e31, PI / 4.0));
-    right_wall.transform_t(Transformation::trans_coords(0.0, 0.0, 5.0));
-    right_wall.normalize();
-    let right_wall = Object::Sphere(right_wall);
-
     let mut middle = Sphere::new();
     middle.transform_t(Transformation::trans_coords(-0.5, 1.0, 0.5));
     middle.material.color = Color::new(0.1, 1.0, 0.5);
@@ -67,6 +44,10 @@ fn main() {
     left.material.specular = 0.3;
     let left = Object::Sphere(left);
 
+    let mut floor_plane = Plane::from(e2);
+    floor_plane.material = room_material;
+    let floor_plane = Object::Plane(floor_plane);
+
     let light1_loc = Trivector::point(-10.0, 10.0, -10.0);
     let light = Light::Point(PointLight::new(light1_loc, Color::new(0.1, 0.5, 0.1)));
 
@@ -79,7 +60,7 @@ fn main() {
 
     let mut world = World::new();
     world.camera = camera;
-    world.objects = vec![floor, left_wall, right_wall, left, middle, right];
+    world.objects = vec![left, middle, right, floor_plane];
     world.lights = vec![light, light2, light3];
 
     world.render().write_file("img.ppm").unwrap();

@@ -22,8 +22,8 @@ impl Trivector {
 
 impl Ray {
     #[inline]
-    pub fn position(&self, t: f32, c: &Camera) -> Trivector {
-        c.location + t * self.forwards()
+    pub fn position(&self, t: f32, p: Trivector) -> Trivector {
+        p + t * self.forwards()
     }
 
     #[inline]
@@ -53,22 +53,21 @@ mod test {
         let p = Trivector::point(2.0, 3.0, 4.0);
         let d = Trivector::direction(1.0, 0.0, 0.0);
         let r = Ray::from((p, d));
-        let c = Camera::new(Trivector::point(2.0, 3.0, 4.0), -e021, -e013, 500, 500, 0.0);
 
         assert_eq!(
-            r.position(0.0, &c).normalize(),
+            r.position(0.0, p).normalize(),
             Trivector::point(2.0, 3.0, 4.0)
         );
         assert_eq!(
-            r.position(1.0, &c).normalize(),
+            r.position(1.0, p).normalize(),
             Trivector::point(3.0, 3.0, 4.0)
         );
         assert_eq!(
-            r.position(-1.0, &c).normalize(),
+            r.position(-1.0, p).normalize(),
             Trivector::point(1.0, 3.0, 4.0)
         );
         assert_eq!(
-            r.position(2.5, &c).normalize(),
+            r.position(2.5, p).normalize(),
             Trivector::point(4.5, 3.0, 4.0)
         );
     }
@@ -78,24 +77,11 @@ mod test {
         let p = Trivector::point(2.0, 3.0, 4.0);
         let d = Trivector::direction(1.0, 0.0, 0.0);
         let r = Ray::from((p, d));
-        let c = Camera::new(e123, -e021, -e013, 500, 500, 0.0);
 
-        assert_eq!(
-            r.when(r.position(0.0, &c).normalize(), c.location),
-            Some(0.0)
-        );
-        assert_eq!(
-            r.when(r.position(1.0, &c).normalize(), c.location),
-            Some(1.0)
-        );
-        assert_eq!(
-            r.when(r.position(-1.0, &c).normalize(), c.location),
-            Some(-1.0)
-        );
-        assert_eq!(
-            r.when(r.position(2.5, &c).normalize(), c.location),
-            Some(2.5)
-        );
+        assert_eq!(r.when(r.position(0.0, p).normalize(), p), Some(0.0));
+        assert_eq!(r.when(r.position(1.0, p).normalize(), p), Some(1.0));
+        assert_eq!(r.when(r.position(-1.0, p).normalize(), p), Some(-1.0));
+        assert_eq!(r.when(r.position(2.5, p).normalize(), p), Some(2.5));
     }
 
     #[test]
@@ -103,16 +89,11 @@ mod test {
         let p = Trivector::point(1.0, 2.0, 3.0);
         let d = Trivector::direction(0.0, 1.0, 0.0);
         let r = Ray::from((p, d));
-        let mut c = Camera::new(p, e013, -e021, 500, 500, 0.0);
         let m = Motor::from(Transformation::trans_coords(3.0, 4.0, 5.0));
 
         let r2 = m >> r;
-        c.transform(m);
 
-        assert_eq!(
-            c.location.normalize(),
-            Trivector::point(4.0, 6.0, 8.0).into()
-        );
+        assert_eq!((m >> p).normalize(), Trivector::point(4.0, 6.0, 8.0).into());
         assert_eq!(r2.forwards(), r.forwards());
     }
 
@@ -122,13 +103,14 @@ mod test {
         let p = Trivector::point(1.0, 2.0, 3.0);
         let d = Trivector::direction(0.0, 1.0, 0.0);
         let r = Ray::from((p, d));
-        let mut c = Camera::new(p, e013, -e021, 500, 500, 0.0);
 
         let rotation = Motor::from(Transformation::rotation(e31, PI / 4.0));
         let r2 = rotation >> r;
-        c.transform(rotation);
 
-        assert_eq!((c.location.normalize() & r2.normalize()).magnitude(), 0.0);
+        assert_eq!(
+            ((rotation >> p).normalize() & r2.normalize()).magnitude(),
+            0.0
+        );
     }
 
     #[test]

@@ -85,18 +85,7 @@ impl World {
 
     #[inline]
     pub fn intersect(&self, r: Ray) -> Vec<Intersection<'_>> {
-        self.objects
-            .iter()
-            .map(|o| o.intersect(r, &self.camera))
-            .fold(
-                vec![],
-                |mut acc: Vec<Intersection<'_>>, xs: Vec<Intersection<'_>>| {
-                    for x in xs {
-                        acc.insert(acc.partition_point(|xa: &Intersection| xa.t() < x.t()), x);
-                    }
-                    acc
-                },
-            )
+        self.intersect_from_origin(r, self.camera.location)
     }
 
     #[inline]
