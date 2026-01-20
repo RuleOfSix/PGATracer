@@ -6,7 +6,19 @@ pub trait Hit {
 
 impl Hit for Vec<Intersection<'_>> {
     fn hit(&self) -> Option<&Intersection<'_>> {
+        /*
+        if self.iter().filter(|x| x.t > 0.0).collect::<Vec<_>>().len() > 1
+            && self
+                .iter()
+                .filter(|x| matches!(x.obj(), ObjectRef::Plane(_) if x.t() > 0.0))
+                .collect::<Vec<_>>()
+                .len()
+                > 0
+        {
+            dbg!(dbg!(self).iter().filter(|x| x.t > 0.0).next())
+        } else { */
         self.iter().filter(|x| x.t > 0.0).next()
+        // }
     }
 }
 
@@ -44,7 +56,7 @@ impl Intersection<'_> {
     pub fn precompute(&self, r: &Ray, c: &Camera) -> IntersectionState<'_> {
         const OVER_ADJUSTMENT: f32 = 10.0 * crate::util::EPSILON;
 
-        let point = r.position(self.t, c).normalize();
+        let point = r.position(self.t, c.location).normalize();
         let eyev = r.forwards().undual().assert::<Vector>().normalize();
         let surface = self.obj.surface_at(point);
         let inside = (surface | eyev).assert::<Scalar>() < 0.0;
