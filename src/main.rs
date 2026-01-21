@@ -1,6 +1,8 @@
 use pgatracer::canvas::*;
 use pgatracer::pga_3::*;
 use pgatracer::raytracing::lighting::*;
+use pgatracer::raytracing::materials::patterns::*;
+use pgatracer::raytracing::materials::*;
 use pgatracer::raytracing::*;
 
 fn main() {
@@ -20,6 +22,7 @@ fn main() {
     let mut room_material = Material::new();
     room_material.color = Color::new(1.0, 0.9, 0.9);
     room_material.specular = 0.0;
+    room_material.pattern = Some(Pattern::stripe(WHITE, BLACK));
 
     let mut middle = Sphere::new();
     middle.transform_t(Transformation::trans_coords(-0.5, 1.0, 0.5));

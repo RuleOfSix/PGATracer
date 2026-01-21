@@ -1,5 +1,6 @@
 use crate::raytracing::intersections::*;
 use crate::raytracing::lighting::*;
+use crate::raytracing::materials::*;
 use crate::raytracing::*;
 pub mod plane;
 pub mod sphere;

@@ -7,6 +7,7 @@ pub mod camera;
 pub mod geometry;
 pub mod intersections;
 pub mod lighting;
+pub mod materials;
 
 pub type Ray = Bivector;
 

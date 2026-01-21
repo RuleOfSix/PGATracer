@@ -1,6 +1,6 @@
+use super::materials::*;
 use crate::canvas::*;
 use crate::pga_3::*;
-use crate::util::float_eq;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Light {
@@ -23,38 +23,6 @@ impl PointLight {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Material {
-    pub color: Color,
-    pub ambient: f32,
-    pub diffuse: f32,
-    pub specular: f32,
-    pub shininess: f32,
-}
-
-impl PartialEq for Material {
-    fn eq(&self, other: &Self) -> bool {
-        self.color == other.color
-            && float_eq(self.ambient, other.ambient)
-            && float_eq(self.diffuse, other.diffuse)
-            && float_eq(self.specular, other.specular)
-            && float_eq(self.shininess, other.shininess)
-    }
-}
-
-impl Material {
-    #[inline]
-    pub const fn new() -> Self {
-        Material {
-            color: WHITE,
-            ambient: 0.1,
-            diffuse: 0.9,
-            specular: 0.9,
-            shininess: 200.0,
-        }
-    }
-}
-
 impl Trivector {
     pub fn lighting(
         self,
@@ -68,7 +36,10 @@ impl Trivector {
         let Light::Point(l) = l else {
             panic!("Non-point lights not implemented.");
         };
-        let color = m.color * l.intensity;
+        let color = match &m.pattern {
+            None => m.color * l.intensity,
+            Some(pat) => pat.apply_at(self) * l.intensity,
+        };
         let mut lightv = l.position - self;
         lightv[0] = 0.0;
         lightv = lightv.normalize();
@@ -231,5 +202,25 @@ mod test {
             in_shadow,
         );
         assert_eq!(result, Color::new(0.1, 0.1, 0.1));
+    }
+
+    #[test]
+    fn lighting_with_pattern() {
+        use crate::raytracing::materials::patterns::*;
+
+        let mut m = Material::new();
+
+        m.pattern = Some(Pattern::stripe(WHITE, BLACK));
+        m.ambient = 1.0;
+        m.diffuse = 0.0;
+        m.specular = 0.0;
+
+        let eye = Vector::from([0.0, 0.0, 1.0, 0.0]);
+        let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
+        let light = Light::Point(PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE));
+        let c1 = Trivector::point(0.9, 0.0, 0.0).lighting(&m, &light, eye, surface, false);
+        let c2 = Trivector::point(1.1, 0.0, 0.0).lighting(&m, &light, eye, surface, false);
+        assert_eq!(c1, WHITE);
+        assert_eq!(c2, BLACK);
     }
 }

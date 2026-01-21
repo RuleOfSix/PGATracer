@@ -2,7 +2,7 @@ use super::Sealed;
 use crate::intersections;
 use crate::pga_3::*;
 use crate::raytracing::intersections::*;
-use crate::raytracing::lighting::*;
+use crate::raytracing::materials::*;
 use crate::raytracing::*;
 
 #[derive(Debug, PartialEq, Clone)]
