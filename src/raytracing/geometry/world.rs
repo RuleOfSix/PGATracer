@@ -110,6 +110,7 @@ impl World {
         for light in &self.lights {
             let in_shadow = self.is_shadowed(h.over_point(), light);
             c = c + h.point().lighting(
+                h.obj(),
                 h.obj().material(),
                 &light,
                 h.eyev(),

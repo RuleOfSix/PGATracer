@@ -1,5 +1,6 @@
 use crate::canvas::*;
 use crate::pga_3::*;
+use crate::raytracing::geometry::*;
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 
@@ -47,6 +48,13 @@ impl Pattern {
     }
 
     #[inline]
+    pub fn apply_at_shape(&self, shape: ObjectRef, point: Trivector) -> Color {
+        let point = (*shape.get_transform() << point).scale(shape.get_scale().reciprocal());
+        let point = (self.transform << point).scale(self.scale.reciprocal());
+        self.apply_at(point)
+    }
+
+    #[inline]
     pub fn transform(&mut self, m: Motor) {
         self.transform = match m * self.transform {
             Versor::Even(m) => m,
@@ -64,7 +72,7 @@ impl Pattern {
 
     #[inline]
     pub fn scale(&mut self, scale: Trivector) {
-        self.scale.scale(scale);
+        self.scale = self.scale.scale(scale);
     }
 }
 
@@ -98,5 +106,39 @@ mod test {
         assert_eq!(pat.apply_at(Trivector::point(0.9, 0.0, 0.0)), WHITE);
         assert_eq!(pat.apply_at(Trivector::point(1.0, 0.0, 0.0)), BLACK);
         assert_eq!(pat.apply_at(Trivector::point(2.0, 0.0, 0.0)), WHITE);
+    }
+
+    #[test]
+    fn stripe_with_pattern_transform() {
+        let mut pat = Pattern::stripe(WHITE, BLACK);
+        pat.scale(Trivector::scale(2.0, 2.0, 2.0));
+        let sphere = Sphere::new();
+        assert_eq!(
+            pat.apply_at_shape(ObjectRef::Sphere(&sphere), Trivector::point(1.5, 0.0, 0.0)),
+            WHITE
+        );
+    }
+
+    #[test]
+    fn stripe_with_object() {
+        let pat = Pattern::stripe(WHITE, BLACK);
+        let mut sphere = Sphere::new();
+        sphere.scale(Trivector::scale(2.0, 2.0, 2.0));
+        assert_eq!(
+            pat.apply_at_shape(ObjectRef::Sphere(&sphere), Trivector::point(1.5, 0.0, 0.0)),
+            WHITE
+        );
+    }
+
+    #[test]
+    fn stripe_with_object_and_pattern_transform() {
+        let mut pat = Pattern::stripe(WHITE, BLACK);
+        pat.transform_t(Transformation::trans_coords(0.5, 0.0, 0.0));
+        let mut sphere = Sphere::new();
+        sphere.scale(Trivector::scale(2.0, 2.0, 2.0));
+        assert_eq!(
+            pat.apply_at_shape(ObjectRef::Sphere(&sphere), Trivector::point(2.5, 0.0, 0.0)),
+            WHITE
+        );
     }
 }

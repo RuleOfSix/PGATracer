@@ -8,6 +8,7 @@ use crate::raytracing::*;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Plane {
     pub vector: Vector,
+    pub transform: Motor,
     pub scale: Trivector,
     pub material: Material,
 }
@@ -71,6 +72,13 @@ impl Obj for Plane {
     #[inline]
     fn transform(&mut self, m: Motor) {
         self.vector = m >> self.vector;
+        self.transform = match self.transform * m {
+            Versor::KVec(AnyKVector::Zero(f)) => Motor::from(f),
+            Versor::KVec(AnyKVector::Two(bv)) => Motor::from(bv),
+            Versor::KVec(AnyKVector::Four(ps)) => Motor::from(ps),
+            Versor::Even(m) => m,
+            _ => panic!("Motor * motor should be motor"),
+        }
     }
 
     #[inline]
@@ -81,7 +89,7 @@ impl Obj for Plane {
 
     #[inline]
     fn get_transform(&self) -> Motor {
-        panic!("Calculating transformation motor of planes not currently supported");
+        self.transform
     }
 
     #[inline]
@@ -96,7 +104,7 @@ impl Obj for Plane {
 
     #[inline]
     fn scale(&mut self, scale: Trivector) {
-        self.scale.scale(scale);
+        self.scale = self.scale.scale(scale);
     }
 }
 
@@ -104,6 +112,7 @@ impl From<Vector> for Plane {
     fn from(v: Vector) -> Self {
         Self {
             vector: v,
+            transform: Motor::from(1.0),
             scale: Trivector::scale(1.0, 1.0, 1.0),
             material: Material::new(),
         }
@@ -115,6 +124,7 @@ impl Plane {
     pub fn new() -> Self {
         Self {
             vector: e2,
+            transform: Motor::from(1.0),
             scale: Trivector::scale(1.0, 1.0, 1.0),
             material: Material::new(),
         }

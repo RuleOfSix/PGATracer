@@ -92,7 +92,7 @@ impl Obj for Sphere {
 
     #[inline]
     fn scale(&mut self, scale: Trivector) {
-        self.scale.scale(scale);
+        self.scale = self.scale.scale(scale);
     }
 }
 

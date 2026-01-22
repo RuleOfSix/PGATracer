@@ -19,16 +19,24 @@ fn main() {
         PI / 3.0,
     );
 
+    let mut floor_pattern = Pattern::stripe(WHITE, BLACK);
+    floor_pattern.transform_t(Transformation::rotation(e31, std::f32::consts::PI / 4.0));
+
     let mut room_material = Material::new();
     room_material.color = Color::new(1.0, 0.9, 0.9);
     room_material.specular = 0.0;
-    room_material.pattern = Some(Pattern::stripe(WHITE, BLACK));
+    room_material.pattern = Some(floor_pattern);
 
     let mut middle = Sphere::new();
     middle.transform_t(Transformation::trans_coords(-0.5, 1.0, 0.5));
+    middle.transform_t(Transformation::rotation(e31, -PI / 4.0));
     middle.material.color = Color::new(0.1, 1.0, 0.5);
     middle.material.diffuse = 0.7;
     middle.material.specular = 0.3;
+
+    let mut middle_pattern = Pattern::stripe(Color::new(0.7, 0.1, 0.1), Color::new(0.1, 0.7, 0.1));
+    middle_pattern.scale(Trivector::scale(0.125, 0.125, 0.125));
+    middle.material.pattern = Some(middle_pattern);
     let middle = Object::Sphere(middle);
 
     let mut right = Sphere::new();

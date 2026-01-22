@@ -1,6 +1,7 @@
 use super::materials::*;
 use crate::canvas::*;
 use crate::pga_3::*;
+use crate::raytracing::geometry::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Light {
@@ -26,6 +27,7 @@ impl PointLight {
 impl Trivector {
     pub fn lighting(
         self,
+        shape: ObjectRef,
         m: &Material,
         l: &Light,
         eye: Vector,
@@ -38,7 +40,7 @@ impl Trivector {
         };
         let color = match &m.pattern {
             None => m.color * l.intensity,
-            Some(pat) => pat.apply_at(self) * l.intensity,
+            Some(pat) => pat.apply_at_shape(shape, self) * l.intensity,
         };
         let mut lightv = l.position - self;
         lightv[0] = 0.0;
@@ -99,10 +101,18 @@ mod test {
         let eye = Trivector::direction(0.0, 0.0, -1.0)
             .dual()
             .assert::<Vector>();
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &Light::Point(light), eye, surface, false),
+            pos.lighting(
+                ObjectRef::Sphere(&shape),
+                &m,
+                &Light::Point(light),
+                eye,
+                surface,
+                false
+            ),
             Color::new(1.9, 1.9, 1.9)
         );
     }
@@ -113,10 +123,12 @@ mod test {
         let pos = e123;
 
         let eye = Trivector::direction(0.0, f32::sqrt(2.0) / 2.0, -f32::sqrt(2.0) / 2.0);
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
         assert_eq!(
             pos.lighting(
+                ObjectRef::Sphere(&shape),
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
@@ -135,10 +147,18 @@ mod test {
         let eye = Trivector::direction(0.0, 0.0, -1.0)
             .dual()
             .assert::<Vector>();
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 10.0, -10.0), WHITE);
         assert_eq!(
-            pos.lighting(&m, &Light::Point(light), eye, surface, false),
+            pos.lighting(
+                ObjectRef::Sphere(&shape),
+                &m,
+                &Light::Point(light),
+                eye,
+                surface,
+                false
+            ),
             Color::new(0.7364, 0.7364, 0.7364)
         );
     }
@@ -149,10 +169,12 @@ mod test {
         let pos = e123;
 
         let eye = Trivector::direction(0.0, -f32::sqrt(2.0) / 2.0, -f32::sqrt(2.0) / 2.0);
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 10.0, -10.0), WHITE);
         assert_eq!(
             pos.lighting(
+                ObjectRef::Sphere(&shape),
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
@@ -169,11 +191,13 @@ mod test {
         let pos = e123;
 
         let eye = Trivector::direction(0.0, 0.0, -1.0);
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, 10.0), WHITE);
 
         assert_eq!(
             pos.lighting(
+                ObjectRef::Sphere(&shape),
                 &m,
                 &Light::Point(light),
                 eye.dual().assert::<Vector>(),
@@ -190,11 +214,13 @@ mod test {
         let pos = e123;
 
         let eye = Trivector::direction(0.0, 0.0, -1.0);
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE);
         let in_shadow = true;
 
         let result = pos.lighting(
+            ObjectRef::Sphere(&shape),
             &m,
             &Light::Point(light),
             eye.dual().assert::<Vector>(),
@@ -216,10 +242,26 @@ mod test {
         m.specular = 0.0;
 
         let eye = Vector::from([0.0, 0.0, 1.0, 0.0]);
+        let shape = Sphere::new();
         let surface = Vector::from([0.0, 0.0, -1.0, 0.0]);
         let light = Light::Point(PointLight::new(Trivector::point(0.0, 0.0, -10.0), WHITE));
-        let c1 = Trivector::point(0.9, 0.0, 0.0).lighting(&m, &light, eye, surface, false);
-        let c2 = Trivector::point(1.1, 0.0, 0.0).lighting(&m, &light, eye, surface, false);
+        let c1 = Trivector::point(0.9, 0.0, 0.0).lighting(
+            ObjectRef::Sphere(&shape),
+            &m,
+            &light,
+            eye,
+            surface,
+            false,
+        );
+
+        let c2 = Trivector::point(1.1, 0.0, 0.0).lighting(
+            ObjectRef::Sphere(&shape),
+            &m,
+            &light,
+            eye,
+            surface,
+            false,
+        );
         assert_eq!(c1, WHITE);
         assert_eq!(c2, BLACK);
     }

@@ -55,6 +55,18 @@ pub enum Object {
     Plane(Plane),
 }
 
+impl From<Sphere> for Object {
+    fn from(s: Sphere) -> Self {
+        Object::Sphere(s)
+    }
+}
+
+impl From<Plane> for Object {
+    fn from(p: Plane) -> Self {
+        Object::Plane(p)
+    }
+}
+
 impl Sealed for Object {}
 impl Obj for Object {
     #[inline]
@@ -143,7 +155,7 @@ impl Obj for Object {
         use Object::*;
         match self {
             Sphere(s) => s.transform,
-            Plane(_) => panic!("Calculating transform motor of planes not currently supported."),
+            Plane(p) => p.transform,
         }
     }
 
@@ -212,6 +224,24 @@ impl ObjectRef<'_> {
         match self {
             Sphere(s) => &s.material,
             Plane(pl) => &pl.material,
+        }
+    }
+
+    #[inline]
+    pub fn get_transform(&self) -> &Motor {
+        use ObjectRef::*;
+        match self {
+            Sphere(s) => &s.transform,
+            Plane(p) => &p.transform,
+        }
+    }
+
+    #[inline]
+    pub fn get_scale(&self) -> &Trivector {
+        use ObjectRef::*;
+        match self {
+            Sphere(s) => &s.scale,
+            Plane(p) => &p.scale,
         }
     }
 }
