@@ -571,6 +571,16 @@ where
         &self[Self::ideal_index()..N]
     }
 
+    #[inline]
+    pub fn snap_to_zero(mut self) -> Self {
+        for f in &mut self.components[0..N] {
+            if float_eq(*f, 0.0) {
+                *f = 0.0;
+            }
+        }
+        self
+    }
+
     pub fn inner_kvector<const G: u8, const D: usize>(self, rhs: KVector<G, D>) -> AnyKVector
     where
         LaneCount<D>: SupportedLaneCount,

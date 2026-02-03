@@ -1,7 +1,9 @@
 use super::Sealed;
+use crate::canvas::Color;
 use crate::intersections;
 use crate::pga_3::*;
 use crate::raytracing::intersections::*;
+use crate::raytracing::materials::patterns::Pattern;
 use crate::raytracing::materials::*;
 use crate::raytracing::*;
 
@@ -109,6 +111,17 @@ impl Sphere {
     #[inline]
     pub fn normalize(&mut self) {
         self.transform = self.transform.normalize();
+    }
+
+    /// Helper method that creates a linear gradient between the given colors,
+    /// transforms it appropriately to extend smoothly from end of the sphere
+    /// to the other, and applies it to the sphere.
+    #[inline]
+    pub fn apply_gradient(&mut self, c1: Color, c2: Color) {
+        let mut gradient = Pattern::gradient(c1, c2);
+        gradient.transform_t(Transformation::trans_coords(-1.0, 0.0, 0.0));
+        gradient.scale(Trivector::scale(2.0, 1.0, 1.0));
+        self.material.pattern = Some(gradient);
     }
 }
 

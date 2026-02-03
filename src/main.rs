@@ -7,20 +7,24 @@ use pgatracer::raytracing::*;
 
 fn main() {
     use std::f32::consts::PI;
-    let cam_loc = Trivector::point(0.0, 1.5, -5.0);
+    let cam_loc = Trivector::point(0.0, 2.25, -7.5);
     let cam_target = Trivector::point(0.0, 1.0, 0.0);
 
     let camera = Camera::new(
         cam_loc,
         (cam_target - cam_loc).normalize(),
         -e013,
-        2000,
+        3000,
         1000,
         PI / 3.0,
     );
 
-    let mut floor_pattern = Pattern::stripe(WHITE, BLACK);
-    floor_pattern.transform_t(Transformation::rotation(e31, std::f32::consts::PI / 4.0));
+    let floor_stripe_1 = Pattern::stripe(Color::new(0.8, 0.2, 0.2), WHITE);
+
+    let mut floor_stripe_2 = Pattern::stripe(Color::new(0.8, 0.2, 0.2), WHITE);
+    floor_stripe_2.transform_t(Transformation::rotation(e31, PI / 2.0));
+
+    let floor_pattern = Pattern::blend(&floor_stripe_1, &floor_stripe_2);
 
     let mut room_material = Material::new();
     room_material.color = Color::new(1.0, 0.9, 0.9);
@@ -53,6 +57,7 @@ fn main() {
     left.material.color = Color::new(1.0, 0.8, 0.1);
     left.material.diffuse = 0.7;
     left.material.specular = 0.3;
+    left.apply_gradient(WHITE, BLACK);
     let left = Object::Sphere(left);
 
     let mut floor_plane = Plane::from(e2);
